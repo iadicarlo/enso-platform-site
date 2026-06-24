@@ -811,60 +811,81 @@ async function initForecastPage() {
   await rerender();
 }
 
-// Plain-language outlook headline derived from the live forecast (primary = SEAS5).
-// Says, in one line, which phase/intensity is favoured and by when, with a CTA into
-// the teleconnection maps preset to that phase. Generic: works for EN, LN or neutral.
+// Plain-language outlook headline derived from the live forecast, across every
+// selected centre (e.g. SEAS5 + Météo-France). Says which phase/intensity is
+// favoured and by when, reports whether the centres agree, and links into the
+// teleconnection maps preset to that phase. Generic over EN / LN / neutral.
 function renderOutlookBanner(forecasts, sources) {
   const el = document.getElementById("outlook-banner");
   if (!el) return;
-  const primSrc = (sources || []).includes("seas5") ? "seas5" : (sources || [])[0];
-  const f = forecasts && forecasts[primSrc];
-  if (!f || !Array.isArray(f.leads) || !f.leads.length) { el.style.display = "none"; return; }
-  const leads = f.leads.slice().sort((a, b) => a.lead - b.lead);
+  const srcs = (sources || []).filter(s =>
+    forecasts && forecasts[s] && Array.isArray(forecasts[s].leads) && forecasts[s].leads.length);
+  if (!srcs.length) { el.style.display = "none"; return; }
+  srcs.sort((a, b) => (a === "seas5" ? -1 : b === "seas5" ? 1 : 0));  // SEAS5 first
 
   const FAM = {
     en: ["moderate_el_nino", "strong_el_nino", "extreme_el_nino"],
     ln: ["moderate_la_nina", "strong_la_nina", "extreme_la_nina"],
     neu: ["neutral"],
   };
-  const famProb = (l, fam) => FAM[fam].reduce((s, c) => s + (l[c] || 0), 0);
-
-  // Medium-range signal: leads 3-6 (fallback to all if fewer than 2).
-  const med = leads.filter(l => l.lead >= 3);
-  const sig = med.length >= 2 ? med : leads;
-  const avgFam = fam => sig.reduce((s, l) => s + famProb(l, fam), 0) / sig.length;
-  const dom = [["en", avgFam("en")], ["ln", avgFam("ln")], ["neu", avgFam("neu")]]
-    .sort((a, b) => b[1] - a[1])[0][0];
-
-  const FAMLABEL = { en: "El Niño", ln: "La Niña", neu: "ENSO-neutral conditions" };
-  const ACCENT = { en: "#C0392B", ln: "#1565C0", neu: "#546E7A" };
-  const TINT = { en: "#FBEEEB", ln: "#EAF1FB", neu: "#ECEFF1" };
-
-  const INT = FAM[dom];                     // weakest -> strongest
   const INTLABEL = {
     moderate_el_nino: "moderate", strong_el_nino: "strong", extreme_el_nino: "extreme",
     moderate_la_nina: "moderate", strong_la_nina: "strong", extreme_la_nina: "extreme", neutral: "neutral",
   };
-  const modalIntAt = l => INT.reduce((b, c) => (l[c] || 0) > (l[b] || 0) ? c : b, INT[0]);
-  const nearInt = modalIntAt(leads[0]);
+  const FAMLABEL = { en: "El Niño", ln: "La Niña", neu: "ENSO-neutral conditions" };
+  const ACCENT = { en: "#C0392B", ln: "#1565C0", neu: "#546E7A" };
+  const TINT = { en: "#FBEEEB", ln: "#EAF1FB", neu: "#ECEFF1" };
+  const FRIENDLY = { seas5: "SEAS5", mf9: "Météo-France", ncep2: "NCEP" };
+  const nameOf = s => FRIENDLY[s] || CENTRE_SHORT[s] || s;
+  const coarseWhen = vt => {
+    const p = (vt || "").split("-"); const m = parseInt(p[1] || "0", 10);
+    return `${m <= 4 ? "early" : m <= 8 ? "mid" : "late"} ${p[0]}`;
+  };
 
-  // Peak intensity = strongest modal intensity across leads + first month it becomes modal.
-  let peakRank = -1, peakInt = INT[0], peakMonth = leads[0].valid_time;
-  for (const l of leads) {
-    const c = modalIntAt(l), r = INT.indexOf(c);
-    if (r > peakRank) { peakRank = r; peakInt = c; peakMonth = l.valid_time; }
+  function analyse(f) {
+    const leads = f.leads.slice().sort((a, b) => a.lead - b.lead);
+    const med = leads.filter(l => l.lead >= 3);
+    const sig = med.length >= 2 ? med : leads;
+    const famProb = (l, fam) => FAM[fam].reduce((s, c) => s + (l[c] || 0), 0);
+    const avgFam = fam => sig.reduce((s, l) => s + famProb(l, fam), 0) / sig.length;
+    const dom = [["en", avgFam("en")], ["ln", avgFam("ln")], ["neu", avgFam("neu")]]
+      .sort((a, b) => b[1] - a[1])[0][0];
+    const INT = FAM[dom];
+    const modalIntAt = l => INT.reduce((b, c) => (l[c] || 0) > (l[b] || 0) ? c : b, INT[0]);
+    const nearInt = modalIntAt(leads[0]);
+    let peakRank = -1, peakInt = INT[0], peakMonth = leads[0].valid_time;
+    for (const l of leads) {
+      const c = modalIntAt(l), r = INT.indexOf(c);
+      if (r > peakRank) { peakRank = r; peakInt = c; peakMonth = l.valid_time; }
+    }
+    const sp = dom === "en" ? ["strong_el_nino", "extreme_el_nino"]
+             : dom === "ln" ? ["strong_la_nina", "extreme_la_nina"] : ["neutral"];
+    const meanSP = sig.reduce((s, l) => s + sp.reduce((a, c) => a + (l[c] || 0), 0), 0) / sig.length;
+    return { dom, INT, nearInt, peakInt, peakMonth, meanSP, vintage: f.vintage, lastMonth: leads[leads.length - 1].valid_time };
   }
 
-  const strongPlus = dom === "en" ? ["strong_el_nino", "extreme_el_nino"]
-                   : dom === "ln" ? ["strong_la_nina", "extreme_la_nina"] : ["neutral"];
-  const meanSP = sig.reduce((s, l) => s + strongPlus.reduce((a, c) => a + (l[c] || 0), 0), 0) / sig.length;
+  const A = srcs.map(s => Object.assign({ src: s }, analyse(forecasts[s])));
+  const primary = A[0];
+  const dom = primary.dom;
+  const agree = A.every(a => a.dom === dom);
+  const rankOf = c => primary.INT.indexOf(c);
 
-  const lastMonth = _formatValidMonth(leads[leads.length - 1].valid_time);
+  // Consensus intensities (meaningful when the centres agree on the family).
+  let nearInt = primary.nearInt, peakInt = primary.peakInt, peakWhenMonth = primary.peakMonth;
+  if (agree) {
+    nearInt = A.reduce((acc, a) => rankOf(a.nearInt) < rankOf(acc) ? a.nearInt : acc, primary.nearInt);
+    peakInt = A.reduce((acc, a) => rankOf(a.peakInt) > rankOf(acc) ? a.peakInt : acc, primary.peakInt);
+    const reaching = A.filter(a => a.peakInt === peakInt).map(a => a.peakMonth).sort();
+    peakWhenMonth = reaching[reaching.length - 1] || primary.peakMonth;
+  }
+
+  const lastMonth = _formatValidMonth(primary.lastMonth);
+  const whenStr = A.length === 1 ? _formatValidMonth(peakWhenMonth) : coarseWhen(peakWhenMonth);
   let headline;
   if (dom === "neu") {
     headline = `Current outlook: ENSO-neutral conditions are favoured through ${lastMonth}.`;
-  } else if (peakRank > INT.indexOf(nearInt)) {
-    headline = `Current outlook: a ${INTLABEL[nearInt]} ${FAMLABEL[dom]} now, strengthening toward ${INTLABEL[peakInt]} by ${_formatValidMonth(peakMonth)}.`;
+  } else if (rankOf(peakInt) > rankOf(nearInt)) {
+    headline = `Current outlook: a ${INTLABEL[nearInt]} ${FAMLABEL[dom]} now, strengthening toward ${INTLABEL[peakInt]} by ${whenStr}.`;
   } else {
     headline = `Current outlook: a ${INTLABEL[peakInt]} ${FAMLABEL[dom]} is favoured through ${lastMonth}.`;
   }
@@ -872,13 +893,26 @@ function renderOutlookBanner(forecasts, sources) {
   const ctaPhase = dom === "en" ? "strong_el_nino" : dom === "ln" ? "strong_la_nina" : "neutral";
   const ctaUrl = `map_explorer.html?source=obs&season=djf&phase=${ctaPhase}&variable=rx10day_anomaly`;
 
+  const names = A.map(a => nameOf(a.src));
+  const namesText = names.length === 1 ? names[0]
+    : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  const systemWord = A.length >= 3 ? "all systems" : "both systems";
+  const vintage = _formatValidMonth(primary.vintage);
+
   let sub;
   if (dom === "neu") {
-    sub = `${(CENTRE_SHORT[primSrc] || primSrc)}, issued ${_formatValidMonth(f.vintage)}. Full distributions and skill below.`;
+    sub = `${namesText}, issued ${vintage}. Full distributions and skill below.`;
+  } else if (A.length === 1) {
+    const spTxt = primary.meanSP >= 0.995 ? `Every ${names[0]} ensemble member is`
+                                          : `${Math.round(primary.meanSP * 100)}% of ${names[0]} ensemble members are`;
+    sub = `${spTxt} in the strong-or-extreme ${FAMLABEL[dom]} range across the 3-6 month outlook (issued ${vintage}) - that lead time is the window for anticipatory action.`;
+  } else if (agree && A.every(a => a.meanSP >= 0.995)) {
+    sub = `${namesText} agree: every ensemble member in ${systemWord} is in the strong-or-extreme ${FAMLABEL[dom]} range across the 3-6 month outlook (issued ${vintage}) - that lead time is the window for anticipatory action.`;
+  } else if (agree) {
+    const shares = A.map(a => `${Math.round(a.meanSP * 100)}% (${nameOf(a.src)})`).join(" and ");
+    sub = `${namesText} agree on ${FAMLABEL[dom]}; the strong-or-extreme share over the 3-6 month outlook is ${shares}, issued ${vintage} - that lead time is the window for anticipatory action.`;
   } else {
-    const spTxt = meanSP >= 0.995 ? `Every ${CENTRE_SHORT[primSrc] || primSrc} ensemble member is`
-                                  : `${Math.round(meanSP * 100)}% of ${CENTRE_SHORT[primSrc] || primSrc} ensemble members are`;
-    sub = `${spTxt} in the strong-or-extreme ${FAMLABEL[dom]} range across the 3-6 month outlook (issued ${_formatValidMonth(f.vintage)}) - that lead time is the window for anticipatory action.`;
+    sub = `${names[0]} favours a ${INTLABEL[primary.peakInt]} ${FAMLABEL[primary.dom]} over the 3-6 month outlook (issued ${vintage}); the centres differ on phase - compare them below.`;
   }
 
   el.style.display = "block";
@@ -897,7 +931,7 @@ function _renderMultiForecastMeta(metaEl, forecasts, sources) {
     if (!f) return `<span style="color:#c62828">${CENTRE_SHORT[src] || src}: missing</span>`;
     return `<span><strong style="color:${CENTRE_COLOR[src] || '#111'}">${CENTRE_SHORT[src] || src}</strong> ${f.vintage}${f.calibrated ? " ✓" : ""}</span>`;
   }).join("");
-  metaEl.innerHTML = parts + `<span style="font-size:0.8rem;color:var(--text-muted)">Probabilities = raw ensemble member fraction (no calibration)</span>`;
+  metaEl.innerHTML = parts + `<span style="font-size:0.8rem;color:var(--text-muted)">Probabilities = raw ensemble member fraction</span>`;
 }
 
 function _renderMultiForecastBars(container, forecasts, sources) {
