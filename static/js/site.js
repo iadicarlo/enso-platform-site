@@ -103,7 +103,8 @@
             '<p class="footer-muted">All input datasets are open and cited on the Methodology page.</p>' +
           '</div>' +
         '</div>' +
-        '<div class="footer-bottom">For research and humanitarian decision-support. Seasonal forecasts carry real uncertainty; read the Skill and Methodology pages before acting on them.</div>';
+        '<div class="footer-bottom">For research and humanitarian decision-support. Seasonal forecasts carry real uncertainty; read the Skill and Methodology pages before acting on them.' +
+          '<br><span style="opacity:0.85">© 2026 Isma Abdelkader Di Carlo · Content licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">CC BY 4.0</a> · Underlying datasets keep their own licenses (see Methodology).</span></div>';
       document.body.appendChild(f);
     }
   }
