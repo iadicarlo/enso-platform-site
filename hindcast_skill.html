@@ -317,8 +317,8 @@
     }
 
     Promise.all([
-      fetch("data/hindcast_skill.json?v=20260625b").then(r=>r.json()),
-      fetch("data/skill_timeseries.json?v=20260625b").then(r=>r.json()).catch(()=>null),
+      fetch("data/hindcast_skill.json?v=20260625c").then(r=>r.json()),
+      fetch("data/skill_timeseries.json?v=20260625c").then(r=>r.json()).catch(()=>null),
     ]).then(([d, ts])=>{
       SKILL = d; TS = ts;
       document.getElementById("hc-period").textContent = (d.hindcast_period||"");
