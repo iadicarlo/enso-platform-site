@@ -25,6 +25,15 @@
     .cbar { display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; color:var(--text-muted); margin:0.4rem 0 1rem; }
     .cbar-grad { height:12px; width:220px; border-radius:3px;
       background:linear-gradient(to right,#2c7bb6,#abd9e9,#ffffbf,#fdae61,#d7191c); border:1px solid var(--border); }
+    .disc-h { font-size:0.92rem; font-weight:700; color:var(--header-bg); margin:1.1rem 0 0.5rem; }
+    .disc-row { display:flex; align-items:center; gap:0.6rem; margin:0.32rem 0; font-size:0.86rem; }
+    .disc-lab { flex:0 0 232px; color:var(--text); }
+    .disc-track { flex:1 1 auto; height:18px; background:#eef2f6; border-radius:4px; overflow:hidden; min-width:110px; }
+    .disc-fill { display:block; height:100%; border-radius:4px; transition:width .3s; }
+    .disc-val { flex:0 0 46px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+    .disc-n { flex:0 0 112px; font-size:0.74rem; color:var(--text-muted); }
+    .disc-na { color:var(--text-muted); font-style:italic; }
+    @media (max-width:768px){ .disc-lab{flex-basis:150px} .disc-n{display:none} }
   </style>
   <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -101,6 +110,19 @@
     </div>
 
     <div class="card">
+      <h2>Intensity discrimination - does the model get the strength right?</h2>
+      <p class="skill-note">
+        Correlation says the model tracks the index, but for action what matters is the
+        <strong>intensity class</strong>. Only a handful of strong or extreme events are on record, so
+        a per-class reliability score would be meaningless. Instead we pool to <strong>moderate</strong>
+        vs <strong>strong + extreme</strong> and ask: is the model's forecast probability of the stronger
+        category higher when the event truly <em>was</em> stronger? A large gap between the paired bars
+        means yes. Pooled over all leads and start months.
+      </p>
+      <div id="intensity-body"><p style="color:var(--text-muted)">Loading…</p></div>
+    </div>
+
+    <div class="card">
       <h2>How to read this</h2>
       <ul class="skill-notes-list">
         <li>Each cell is the correlation, across hindcast years, between the ensemble-mean NINO index
@@ -167,9 +189,39 @@
         html += `</tbody></table></div>`;
       });
       el.innerHTML = html;
+      renderIntensity(model);
     }
 
-    fetch("data/hindcast_skill.json").then(r=>r.json()).then(d=>{
+    function pctBar(label, pct, n, color){
+      if (pct === null || pct === undefined)
+        return `<div class="disc-row"><span class="disc-lab">${label}</span><span class="disc-na">no events on record</span></div>`;
+      return `<div class="disc-row">`+
+        `<span class="disc-lab">${label}</span>`+
+        `<span class="disc-track"><span class="disc-fill" style="width:${Math.max(2,pct)}%;background:${color}"></span></span>`+
+        `<span class="disc-val">${Math.round(pct)}%</span>`+
+        `<span class="disc-n">${n} event-months</span></div>`;
+    }
+
+    function renderIntensity(model){
+      const host = document.getElementById("intensity-body");
+      const it = SKILL.models[model] && SKILL.models[model].intensity;
+      if (!it){ host.innerHTML = `<p style="color:var(--text-muted)">Intensity discrimination not available for this model.</p>`; return; }
+      const en = it.el_nino, ln = it.la_nina, ed = en.extreme_detection || {};
+      const os = ed.observed_strong || {}, oe = ed.observed_extreme || {};
+      host.innerHTML =
+        `<div class="disc-h">El Niño - model probability it called STRONG or EXTREME</div>`+
+        pctBar("When it was MODERATE", en.moderate.mean_pct, en.moderate.n_events, "#F2A65A")+
+        pctBar("When it was STRONG / EXTREME", en.strong_extreme.mean_pct, en.strong_extreme.n_events, "#B71C1C")+
+        `<div class="disc-h">Within strong/extreme El Niño - model probability it called EXTREME</div>`+
+        pctBar("When it was STRONG", os.mean_pct, os.n_events, "#F57C00")+
+        pctBar("When it was EXTREME", oe.mean_pct, oe.n_events, "#7B0D0D")+
+        `<div class="disc-h">La Niña - model probability it called STRONG or EXTREME</div>`+
+        pctBar("When it was MODERATE", ln.moderate.mean_pct, ln.moderate.n_events, "#64B5F6")+
+        pctBar("When it was STRONG / EXTREME", ln.strong_extreme.mean_pct, ln.strong_extreme.n_events, "#0D47A1")+
+        `<p class="skill-note" style="margin-top:0.7rem">${SKILL.models[model].label} &middot; ${SKILL.hindcast_period}. A wide gap between the two bars in each pair means the model reliably separates the intensities.</p>`;
+    }
+
+    fetch("data/hindcast_skill.json?v=20260625a").then(r=>r.json()).then(d=>{
       SKILL = d;
       document.getElementById("hc-period").textContent = (d.hindcast_period||"").replace("-","-");
       const tb = document.getElementById("model-toolbar");
