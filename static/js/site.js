@@ -20,6 +20,15 @@
         parent.classList.toggle("open", !wasOpen);
       });
     });
+    // Selecting an item closes its dropdown (so it never stays stuck open,
+    // including when the link points back to the current page).
+    document.querySelectorAll(".nav-dropdown-menu a").forEach(function (link) {
+      if (link.dataset.navLinkWired) return;
+      link.dataset.navLinkWired = "1";
+      link.addEventListener("click", function () {
+        document.querySelectorAll(".nav-dropdown.open").forEach(function (p) { p.classList.remove("open"); });
+      });
+    });
     if (!document.body.dataset.navOutsideWired) {
       document.body.dataset.navOutsideWired = "1";
       document.addEventListener("click", function (e) {
@@ -38,13 +47,19 @@
     var headerInner = document.querySelector(".header-inner");
     var nav = headerInner ? headerInner.querySelector("nav") : null;
 
-    if (nav && !nav.querySelector('a[href="about.html"]')) {
-      var a = document.createElement("a");
-      a.href = "about.html";
-      a.textContent = "About";
-      a.setAttribute("data-nav", "about");
-      if (document.body.dataset.page === "about") a.classList.add("active");
-      nav.appendChild(a);
+    if (nav && !nav.querySelector('.nav-dropdown[data-nav-group="about"]')) {
+      var page = document.body.dataset.page;
+      var isAbout = (page === "about" || page === "methodology");
+      var dd = document.createElement("div");
+      dd.className = "nav-dropdown";
+      dd.setAttribute("data-nav-group", "about");
+      dd.innerHTML =
+        '<span class="nav-dropdown-toggle' + (isAbout ? " active" : "") + '" data-nav="about">About</span>' +
+        '<div class="nav-dropdown-menu">' +
+          '<a href="about.html" data-nav-item="about_me"' + (page === "about" ? ' class="active"' : "") + ">About and contact</a>" +
+          '<a href="methodology.html" data-nav-item="methodology"' + (page === "methodology" ? ' class="active"' : "") + ">Methodology and data</a>" +
+        "</div>";
+      nav.appendChild(dd);
     }
 
     if (headerInner && nav && !headerInner.querySelector(".nav-toggle")) {
@@ -71,7 +86,7 @@
           '<div class="footer-col">' +
             '<div class="footer-title">ENSOscope</div>' +
             '<p>Operational El Niño / La Niña forecasts and teleconnection maps, turning seasonal climate forecasts into regional signals for anticipatory action.</p>' +
-            '<p class="footer-muted">Created by Isma Abdelkader Di Carlo (PhD), Utrecht University, in collaboration with Médecins Sans Frontières (MSF).</p>' +
+            '<p class="footer-muted">Created by Isma Abdelkader Di Carlo (PhD), Utrecht University.</p>' +
           '</div>' +
           '<div class="footer-col">' +
             '<div class="footer-title">Explore</div>' +
@@ -93,7 +108,7 @@
     }
   }
 
-  function init() { wireNavDropdowns(); injectChrome(); }
+  function init() { injectChrome(); wireNavDropdowns(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {

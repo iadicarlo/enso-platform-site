@@ -150,12 +150,10 @@ nav a.active         { color: #FFFFFF; background: rgba(255,255,255,0.14); }
 /* Dropdown is shown:
      - on hover (desktop, default)
      - when JS toggles .open on the parent (click/tap-to-open)
-     - when the toggle carries .active (i.e., this tab group matches the current page)
-*/
+   The active tab group is only highlighted (see .active rules above); it is
+   NOT forced open, so the submenu does not stay stuck open on its own page. */
 .nav-dropdown:hover .nav-dropdown-menu,
-.nav-dropdown.open .nav-dropdown-menu,
-.nav-dropdown.active .nav-dropdown-menu,
-.nav-dropdown:has(> .nav-dropdown-toggle.active) .nav-dropdown-menu { display: block; }
+.nav-dropdown.open .nav-dropdown-menu { display: block; }
 
 .nav-dropdown-menu a {
   display: block;
@@ -163,6 +161,7 @@ nav a.active         { color: #FFFFFF; background: rgba(255,255,255,0.14); }
   text-decoration: none;
   padding: 0.45rem 1rem;
   font-size: 0.85rem;
+  white-space: nowrap;
   transition: color 0.12s, background 0.12s;
   border-radius: 0;
 }

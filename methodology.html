@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Methodology - ENSOscope</title>
-  <link rel="stylesheet" href="static/css/style.css?v=20260624f">
-  <link rel="icon" type="image/png" href="favicon.png?v=20260624f">
+  <link rel="stylesheet" href="static/css/style.css?v=20260624g">
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624g">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body data-page="methodology">
 
   <header>
     <div class="header-inner">
-      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624f" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624g" class="site-logo" alt=""><span>ENSO</span>scope</a>
       <nav>
         <div class="nav-dropdown">
           <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
@@ -75,10 +75,9 @@
       <h2>Bias &amp; amplitude correction - no statistical calibration</h2>
       <div class="prose">
         <p>
-          Following the <strong>ECCC / Merryfield &amp; Lee</strong> approach used for the Copernicus
-          C3S seasonal products, each member's index is corrected to the
-          <strong>1993-2016 common hindcast period</strong>: the hindcast mean is removed and the
-          variance is rescaled to match observations,
+          Each member's index is corrected to the <strong>1993-2016 common hindcast period</strong>
+          with a variance-rescaling bias correction (after <strong>Merryfield &amp; Lee</strong>): the
+          hindcast mean is removed and the variance is rescaled to match observations,
         </p>
         <p style="text-align:center;font-size:1.05rem">
           <em>z = (anomaly − μ<sub>hindcast</sub>) / σ<sub>hindcast</sub></em>
@@ -105,11 +104,9 @@
         <p>
           Skill is shown directly as the <strong>temporal correlation</strong> between the hindcast
           <em>ensemble-mean</em> NINO index and observations, as a function of start month and lead
-          time, for each NINO region including NINO3 precipitation - exactly the
-          <a href="https://confluence.ecmwf.int/display/CKB/C3S+seasonal+forecasts+verification+plots"
-             target="_blank" rel="noopener">C3S seasonal-verification</a> heatmaps. Correlation falls
-          at longer leads and across the boreal-spring predictability barrier. See the
-          <a href="hindcast_skill.html">Skill tab</a>.
+          time, for each NINO region including NINO3 precipitation - the standard anomaly-correlation
+          metric used in seasonal-forecast verification. Correlation falls at longer leads and across
+          the boreal-spring predictability barrier. See the <a href="hindcast_skill.html">Skill tab</a>.
         </p>
       </div>
     </div>
@@ -132,7 +129,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="data-sources">
       <h2>Data sources and references</h2>
       <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:0.8rem">
         Every dataset used here is open and freely available. Please cite the original sources below if you reuse this material.
@@ -172,6 +169,6 @@
     </div>
   </main>
 
-  <script src="static/js/site.js?v=20260624f"></script>
+  <script src="static/js/site.js?v=20260624g"></script>
 </body>
 </html>
