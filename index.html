@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ENSO Forecast - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <script src="static/lib/chart.umd.min.js?v=20260624d"></script>
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="forecast">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle active" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" class="active" data-nav-item="forecast_enso">ENSO</a>
+            <a href="forecast_maps.html" data-nav-item="forecast_maps">Maps</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">ENSO Forecast on File</h1>
+    <p class="page-subtitle">
+      ENSO phase &amp; intensity probability forecast (ECMWF SEAS5 + Météo-France),
+      leads 1-6 months. Probabilities are the raw fraction of ensemble members in each class.
+    </p>
+
+    <!-- Current status summary - populated by JS -->
+    <div id="current-status-section" style="display:none">
+      <div class="status-banner" id="status-cards"></div>
+      <div class="card" style="margin-bottom:1.5rem;padding:1rem 1.2rem">
+        <h2 style="margin-bottom:0.3rem">Phase Outlook by Lead Time</h2>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+          Summary cards above show averages over leads 3-6. Rows highlighted in light blue are the medium-range signal leads.
+        </p>
+        <table class="status-lead-table" id="status-lead-table">
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Valid month</th>
+              <th>Most likely</th>
+              <th>Probability</th>
+              <th>Distribution</th>
+            </tr>
+          </thead>
+          <tbody id="status-lead-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="meta-bar" id="forecast-meta">Loading metadata…</div>
+
+    <!-- Multi-select source chooser: JS (_renderMultiSourceSelector) injects
+         a checkbox list into #forecast-multi-selector so users can overlay
+         multiple centres on the same probability + plume chart. -->
+    <!-- Legacy single-select kept hidden as a fallback; JS hides its card. -->
+    <div class="card" style="margin-bottom:1rem;padding:0.7rem 1.2rem;display:none">
+      <label for="forecast-source" style="font-weight:600;margin-right:0.6rem">
+        Forecast source (legacy):
+      </label>
+      <select id="forecast-source" onchange="setForecastSource(this.value)">
+        <option value="seas5">SEAS5 (ECMWF, System 51)</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h2>Forecast Probability by Lead Time</h2>
+      <div id="forecast-container">
+        <p style="color:var(--text-muted)">Loading forecast data…</p>
+      </div>
+    </div>
+
+    <div class="card" id="forecast-latest-card">
+      <h2>Latest Forecast Ensemble Plumes</h2>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.9rem">
+        Latest forecast issue on file: <strong id="forecast-latest-vintage">Loading…</strong>.
+        Ensemble plumes are shown for the latest issue only; previous issue months are folded into the Hindcasts tab.
+      </p>
+
+      <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:0.9rem">
+        <div>
+          <label class="ctrl-label" for="forecast-latest-variable">Variable</label>
+          <select id="forecast-latest-variable" class="ctrl-select">
+            <option value="extreme_el_nino" selected>P(Extreme El Niño)</option>
+            <option value="_en_total">P(El Niño - any intensity)</option>
+            <option value="_ln_total">P(La Niña - any intensity)</option>
+            <option value="strong_el_nino">P(Strong El Niño)</option>
+            <option value="moderate_el_nino">P(Moderate El Niño)</option>
+            <option value="neutral">P(Neutral)</option>
+            <option value="moderate_la_nina">P(Moderate La Niña)</option>
+            <option value="strong_la_nina">P(Strong La Niña)</option>
+            <option value="extreme_la_nina">P(Extreme La Niña)</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="updateForecastLatestChart()">Update</button>
+      </div>
+
+      <h3 id="forecast-latest-chart-title">Latest forecast plumes</h3>
+      <div style="position:relative;height:420px;margin-bottom:0.8rem">
+        <canvas id="forecast-latest-chart"></canvas>
+      </div>
+
+      <div class="threshold-legend" id="fc-phase-legend"></div>
+
+      <div class="card" id="forecast-latest-spread-card" style="display:none;margin-top:1rem">
+        <h3 style="margin-bottom:0.7rem">Ensemble Spread Statistics</h3>
+        <div id="forecast-latest-spread-content"></div>
+      </div>
+
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.8rem">
+        Observed overlay source: <span id="forecast-latest-obs-method">Loading method…</span>
+      </p>
+    </div>
+
+    <div class="card" id="forecast-members-card">
+      <h2>Per-centre ensemble member plumes</h2>
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.9rem">
+        Individual member trajectories from every contributing centre. Thin lines = members;
+        thick line = centre's ensemble median. Centre selection follows the same checkbox
+        set as the probability plume above.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:0.9rem">
+        <div>
+          <label class="ctrl-label" for="fc-members-variable">Variable</label>
+          <select id="fc-members-variable" class="ctrl-select">
+            <option value="nino34_std" selected>Niño 3.4 SST (σ)</option>
+            <option value="nino3_std">Niño 3 SST (σ)</option>
+            <option value="nino4_std">Niño 4 SST (σ)</option>
+            <option value="nino3_pr_anom">Niño 3 Precip Anomaly (mm/day)</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="updateForecastMembersPlume()">Update</button>
+      </div>
+      <div style="position:relative;height:460px">
+        <canvas id="fc-members-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>About This Forecast</h2>
+      <div class="prose">
+        <p>
+          The probability bars above show the <strong>raw fraction of ensemble members</strong>
+          falling in each ENSO intensity class. Each member's NINO index is first bias- and
+          amplitude-corrected to the 1993-2016 hindcast
+          (<em>z = (anomaly − μ<sub>hindcast</sub>) / σ<sub>hindcast</sub></em>, matching observed
+          variance per the ECCC/Merryfield method); extreme El Niño additionally requires a
+          NINO3 precipitation anomaly ≥ 5 mm/day. No statistical calibration is applied.
+        </p>
+        <p>
+          The <strong>hierarchical decision rule</strong> determines the most likely
+          class by first selecting the dominant phase family (La Niña / Neutral / El Niño),
+          then choosing the intensity within that family - avoiding vote-splitting across
+          intensity classes of the same sign.
+        </p>
+        <p>
+          Forecast vintage is shown in the metadata bar above. Each row shows the probability
+          distribution for the indicated valid month at the given lead.
+          See <a href="hindcast_skill.html">Skill</a> for verification metrics
+          and acceptance gate results.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="static/js/app.js?v=20260624d"></script>
+  <script src="static/js/site.js?v=20260624d"></script>
+</body>
+</html>

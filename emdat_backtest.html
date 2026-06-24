@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historical Backtest - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <script src="static/lib/chart.umd.min.js?v=20260624d"></script>
+  <script src="static/lib/d3.min.js?v=20260624d"></script>
+  <style>
+    /* ── Page layout ────────────────────────────────────────────── */
+    .backtest-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 0;
+      min-height: calc(100vh - 60px);
+    }
+
+    /* ── Control sidebar ────────────────────────────────────────── */
+    .ctrl-sidebar {
+      grid-row: 1 / 4;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      padding: 1rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      overflow-y: auto;
+    }
+    .ctrl-sidebar h3 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 0 0 0.4rem;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .ctrl-btn {
+      padding: 0.35rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .ctrl-btn:hover { background: var(--surface-2, #f0f4f8); }
+    .ctrl-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .ctrl-select {
+      width: 100%;
+      padding: 0.32rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .ctrl-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0.2rem 0;
+    }
+    .ctrl-hint {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ── Map area ───────────────────────────────────────────────── */
+    .map-area {
+      grid-column: 2;
+      grid-row: 1;
+      position: relative;
+      background: #e8f0f8;
+      overflow: hidden;
+      min-height: 420px;
+    }
+    #choropleth-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .country-path {
+      stroke: rgba(255,255,255,0.45);
+      stroke-width: 0.4px;
+      cursor: pointer;
+      transition: opacity 0.1s;
+    }
+    .country-path:hover { stroke: #222; stroke-width: 1.2px; opacity: 0.85; }
+    .country-path.selected { stroke: #111; stroke-width: 1.8px; }
+
+    /* ── Map legend / colorbar ──────────────────────────────────── */
+    .map-legend {
+      position: absolute;
+      bottom: 10px;
+      left: 12px;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.68rem;
+      color: var(--text);
+      pointer-events: none;
+    }
+    .legend-cbar {
+      width: 200px;
+      height: 10px;
+      border-radius: 3px;
+      margin: 0.3rem 0 0.15rem;
+    }
+    .legend-tick-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+    }
+
+    /* ── Map tooltip ────────────────────────────────────────────── */
+    #map-tooltip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      background: rgba(20,20,30,0.88);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 5px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* ── Map loading ────────────────────────────────────────────── */
+    #map-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(232,240,248,0.8);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    /* ── Country detail panel ───────────────────────────────────── */
+    .detail-panel {
+      grid-column: 2;
+      grid-row: 2;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      padding: 0.9rem 1.1rem 1rem;
+      display: none;
+    }
+    .detail-panel.open { display: block; }
+    .detail-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.8rem;
+      margin-bottom: 0.7rem;
+    }
+    .detail-header h2 { font-size: 1rem; margin: 0; }
+    .detail-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0 0.2rem;
+    }
+    .detail-close:hover { color: var(--text); }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .detail-chart-wrap {
+      position: relative;
+      height: 200px;
+    }
+    .detail-stats {
+      font-size: 0.78rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .stat-label { color: var(--text-muted); }
+    .stat-val { font-weight: 600; }
+
+    /* ── About panel ────────────────────────────────────────────── */
+    .about-panel {
+      grid-column: 2;
+      grid-row: 3;
+      border-top: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+    .about-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      text-align: left;
+      padding: 0.6rem 1.1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .about-toggle:hover { color: var(--text); }
+    .about-body {
+      display: none;
+      padding: 0 1.1rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .about-body.open { display: block; }
+    .about-body ul { margin: 0.4rem 0 0 1.1rem; padding: 0; }
+    .about-body li { margin-bottom: 0.2rem; }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .backtest-layout { grid-template-columns: 1fr; }
+      .ctrl-sidebar { grid-row: auto; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; flex-wrap: wrap; gap: 0.6rem; }
+      .map-area { grid-column: 1; }
+      .detail-panel { grid-column: 1; }
+      .about-panel { grid-column: 1; }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="emdat_backtest">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" data-nav-item="forecast_enso">ENSO</a>
+            <a href="forecast_maps.html" data-nav-item="forecast_maps">Maps</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="backtest-layout">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────── -->
+    <aside class="ctrl-sidebar">
+      <div>
+        <h3>Phase</h3>
+        <div class="ctrl-group" id="phase-group">
+          <button class="ctrl-btn active" data-phase="el_nino">El Niño</button>
+          <button class="ctrl-btn" data-phase="la_nina">La Niña</button>
+          <button class="ctrl-btn" data-phase="neutral">Neutral</button>
+        </div>
+      </div>
+
+      <div>
+        <h3 id="intensity-heading">Intensity</h3>
+        <div class="ctrl-group" id="intensity-group">
+          <button class="ctrl-btn" data-intensity="all">All (family avg)</button>
+          <button class="ctrl-btn" data-intensity="extreme_el_nino">Extreme El Niño</button>
+          <button class="ctrl-btn" data-intensity="strong_el_nino">Strong El Niño</button>
+          <button class="ctrl-btn" data-intensity="moderate_el_nino">Moderate El Niño</button>
+          <button class="ctrl-btn" data-intensity="moderate_la_nina">Moderate La Niña</button>
+          <button class="ctrl-btn" data-intensity="strong_la_nina">Strong La Niña</button>
+          <button class="ctrl-btn" data-intensity="extreme_la_nina">Extreme La Niña</button>
+        </div>
+      </div>
+
+      <hr class="ctrl-divider">
+
+      <div>
+        <h3>Metric</h3>
+        <div class="ctrl-group">
+          <select class="ctrl-select" id="metric-select" onchange="updateChoropleth()">
+            <option value="ratio_events" selected>Event frequency % vs Neutral</option>
+            <option value="ratio_deaths">Median deaths % vs Neutral</option>
+            <option value="ratio_damage">Median damage % vs Neutral</option>
+            <option value="events_per_month">Event frequency (per month)</option>
+            <option value="median_deaths">Median deaths per event</option>
+            <option value="median_damage_musd">Median damage per event (M USD)</option>
+            <option value="median_affected_thousands">Median affected per event (k)</option>
+            <option value="mean_deaths">Mean deaths per event</option>
+            <option value="mean_damage_musd">Mean damage per event (M USD)</option>
+            <option value="mean_affected_thousands">Mean affected per event (k)</option>
+            <option value="total_deaths">Total deaths</option>
+            <option value="total_damage_musd">Total damage (M USD)</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="ctrl-divider">
+
+      <p class="ctrl-hint">
+        Click a country to see its full breakdown across all ENSO phases.
+      </p>
+      <p class="ctrl-hint" id="sidebar-meta"></p>
+    </aside>
+
+    <!-- ── Map ─────────────────────────────────────────────────── -->
+    <div class="map-area" id="map-area">
+      <svg id="choropleth-svg"></svg>
+      <div id="map-loading">Loading…</div>
+      <div id="map-tooltip"></div>
+      <button onclick="resetZoom()" title="Reset zoom" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.88);border:1px solid var(--border);border-radius:5px;padding:0.25rem 0.5rem;font-size:0.72rem;cursor:pointer;z-index:4;color:var(--text)">⟲ Reset</button>
+      <div class="map-legend" id="map-legend" style="display:none">
+        <div id="legend-title" style="font-weight:600;margin-bottom:0.2rem"></div>
+        <canvas class="legend-cbar" id="legend-cbar"></canvas>
+        <div class="legend-tick-row">
+          <span id="legend-min">0</span>
+          <span id="legend-mid"></span>
+          <span id="legend-max">max</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.4rem">
+          <svg width="18" height="12" style="flex-shrink:0">
+            <defs><pattern id="hatch-legend" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><rect width="4" height="4" fill="#e0e0e0"/><line x1="0" y1="0" x2="0" y2="4" stroke="rgba(100,100,100,0.55)" stroke-width="1.5"/></pattern></defs>
+            <rect width="18" height="12" fill="url(#hatch-legend)" rx="2"/>
+          </svg>
+          <span style="font-size:0.65rem;color:var(--text-muted)">Insufficient data (&lt;5 events)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Country detail panel ──────────────────────────────────── -->
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-header">
+        <h2 id="detail-country-name">Country</h2>
+        <span id="detail-country-total" style="font-size:0.8rem;color:var(--text-muted)"></span>
+        <button class="detail-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-grid">
+        <div>
+          <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:0.4rem" id="detail-chart-label">Mean deaths per event</div>
+          <div class="detail-chart-wrap">
+            <canvas id="detail-chart"></canvas>
+          </div>
+        </div>
+        <div class="detail-stats" id="detail-stats"></div>
+      </div>
+    </div>
+
+    <!-- ── About ────────────────────────────────────────────────── -->
+    <div class="about-panel" id="about-panel">
+      <button class="about-toggle" onclick="toggleAbout()">
+        <span id="about-arrow">▶</span> Data &amp; caveats
+      </button>
+      <div class="about-body" id="about-body">
+        <p>
+          Disaster data: <strong>EM-DAT</strong> (CRED, UCLouvain), 1980-2025.
+          Types included: Flood, Drought, Storm, Mass movement (wet), Wildfire.
+          ENSO phase assignment uses the <strong>OBS event catalog</strong>
+          (same 7-class classification as the Teleconnections page - COBE-SST2 + GPCP,
+          event duration ≥5 months, DJF phase-locking, gap-filling).
+        </p>
+        <ul id="about-caveats"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  "use strict";
+
+  // ── ISO3 → GeoJSON name alias (where they differ) ──────────────────────────
+  const ISO_TO_GEO_NAME = {
+    "VNM": "Vietnam",
+    "RUS": "Russia",
+    "IRN": "Iran",
+    "KOR": "South Korea",
+    "PRK": "North Korea",
+    "BOL": "Bolivia",
+    "TWN": "Taiwan",
+    "GBR": "United Kingdom",
+    "COD": "Dem. Rep. Congo",
+    "DOM": "Dominican Rep.",
+    "TZA": "Tanzania",
+    "TUR": "Turkey",
+    "VEN": "Venezuela",
+    "LAO": "Laos",
+    "MKD": "North Macedonia",
+    "SYR": "Syria",
+    "PSE": "Palestine",
+    "SSD": "S. Sudan",
+    "CAF": "Central African Rep.",
+    "BIH": "Bosnia and Herz.",
+    "GNQ": "Eq. Guinea",
+    "SWZ": "eSwatini",
+    "CIV": "Côte d'Ivoire",
+    "MMR": "Myanmar",
+    "TLS": "Timor-Leste",
+    "SLB": "Solomon Is.",
+    "CZE": "Czechia",
+    "MDA": "Moldova",
+    "XKX": "Kosovo",
+    "COG": "Congo",
+    "HKG": null,   // Hong Kong - not in GeoJSON as separate country
+    "MAC": null,   // Macao
+    "REU": null,   // Réunion
+  };
+
+  const PHASE_COLORS = { el_nino: "#ef4444", la_nina: "#3b82f6", neutral: "#9ca3af" };
+  const PHASE_LABELS = {
+    el_nino: "El Niño", la_nina: "La Niña", neutral: "Neutral",
+    extreme_el_nino: "Extreme El Niño", strong_el_nino: "Strong El Niño",
+    moderate_el_nino: "Moderate El Niño",
+    moderate_la_nina: "Moderate La Niña", strong_la_nina: "Strong La Niña",
+    extreme_la_nina: "Extreme La Niña",
+  };
+  const INTENSITY_FAMILY = {
+    extreme_el_nino: "el_nino", strong_el_nino: "el_nino", moderate_el_nino: "el_nino",
+    moderate_la_nina: "la_nina", strong_la_nina: "la_nina", extreme_la_nina: "la_nina",
+    neutral: "neutral",
+  };
+  const INTENSITY_ORDER = [
+    "extreme_la_nina","strong_la_nina","moderate_la_nina","neutral",
+    "moderate_el_nino","strong_el_nino","extreme_el_nino",
+  ];
+  const METRIC_LABELS = {
+    ratio_events: "Event frequency % change vs Neutral",
+    ratio_deaths: "Median deaths % change vs Neutral",
+    ratio_damage: "Median damage % change vs Neutral",
+    events_per_month: "Events per month",
+    median_deaths: "Median deaths / event",
+    median_damage_musd: "Median damage (M USD) / event",
+    median_affected_thousands: "Median affected (k) / event",
+    mean_deaths: "Mean deaths / event",
+    mean_damage_musd: "Mean damage (M USD) / event",
+    mean_affected_thousands: "Mean affected (k) / event",
+    total_deaths: "Total deaths",
+    total_damage_musd: "Total damage (M USD)",
+  };
+  const RATIO_METRICS = new Set(["ratio_events", "ratio_deaths", "ratio_damage"]);
+  const RATIO_BASE_METRIC = {
+    ratio_events: "events_per_month",
+    ratio_deaths: "median_deaths",
+    ratio_damage: "median_damage_musd",
+  };
+  // Convert ratio to percentage change: 1.5 → +50, 0.7 → -30
+  function ratioPct(v) { return (v - 1) * 100; }
+
+  let _data = null;
+  let _geoJSON = null;
+  let _activePhase = "el_nino";
+  let _activeIntensity = "all";   // "all" or intensity key
+  let _selectedISO = null;
+  let _detailChart = null;
+  let _projection = null;
+  let _pathGen = null;
+  let _zoom = null;
+  let _svgG = null;   // the <g> that gets the zoom transform
+
+  // ── Colorscale (sequential yellow→orange→red) ──────────────────────────────
+  const CMAP_STOPS = [
+    [0,    [255, 255, 229]],
+    [0.15, [255, 247, 188]],
+    [0.35, [254, 196,  79]],
+    [0.6,  [253, 141,  60]],
+    [0.8,  [227,  26,  28]],
+    [1,    [128,   0,  38]],
+  ];
+  function scaleColor(t) {
+    if (t == null || isNaN(t)) return `rgb(224,224,224)`;  // grey for bad input
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 1; i < CMAP_STOPS.length; i++) {
+      if (t <= CMAP_STOPS[i][0]) {
+        const t0 = CMAP_STOPS[i-1][0], t1 = CMAP_STOPS[i][0];
+        const f = (t - t0) / (t1 - t0);
+        const c0 = CMAP_STOPS[i-1][1], c1 = CMAP_STOPS[i][1];
+        return `rgb(${Math.round(c0[0]+f*(c1[0]-c0[0]))},${Math.round(c0[1]+f*(c1[1]-c0[1]))},${Math.round(c0[2]+f*(c1[2]-c0[2]))})`;
+      }
+    }
+    const last = CMAP_STOPS[CMAP_STOPS.length-1][1];
+    return `rgb(${last[0]},${last[1]},${last[2]})`;
+  }
+
+  // ── Get metric value for a country/phase/metric combination ───────────────
+  function _getValue(iso, metric) {
+    const country = _data.by_country[iso];
+    if (!country) return null;
+
+    // Ratio metrics: divide phase value by neutral value
+    // Require ≥5 events in both phase and neutral to suppress noisy small-sample countries
+    const MIN_EVENTS = 5;
+    if (RATIO_METRICS.has(metric)) {
+      const baseMetric = RATIO_BASE_METRIC[metric];
+      const phaseKey = _activeIntensity === "all" ? _activePhase : _activeIntensity;
+      const byPhase = _activeIntensity === "all" ? country.by_phase : country.by_intensity;
+      const phaseRow = byPhase[phaseKey];
+      const neutralRow = country.by_phase["neutral"];
+      if (!phaseRow || !neutralRow) return null;
+      if ((phaseRow.n_events ?? 0) < MIN_EVENTS || (neutralRow.n_events ?? 0) < MIN_EVENTS) return null;
+      const phaseVal = phaseRow[baseMetric];
+      const neutralVal = neutralRow[baseMetric];
+      if (phaseVal == null || neutralVal == null || neutralVal === 0) return null;
+      return phaseVal / neutralVal;
+    }
+
+    const byPhase = _activeIntensity === "all" ? country.by_phase : country.by_intensity;
+    const key = _activeIntensity === "all" ? _activePhase : _activeIntensity;
+    const row = byPhase[key];
+    if (!row) return null;
+    return row[metric] ?? null;
+  }
+
+  // ── Diverging colorscale for ratio metrics (blue=less, white=1×, red=more)
+  const RDBU_STOPS = [
+    [0,    [33,  102, 172]],
+    [0.25, [146, 197, 222]],
+    [0.5,  [247, 247, 247]],
+    [0.75, [244, 165, 130]],
+    [1,    [178,  24,  43]],
+  ];
+  function ratioColor(t) {
+    if (t == null || isNaN(t)) return `rgb(224,224,224)`;
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 1; i < RDBU_STOPS.length; i++) {
+      if (t <= RDBU_STOPS[i][0]) {
+        const t0 = RDBU_STOPS[i-1][0], t1 = RDBU_STOPS[i][0];
+        const f = (t - t0) / (t1 - t0);
+        const c0 = RDBU_STOPS[i-1][1], c1 = RDBU_STOPS[i][1];
+        return `rgb(${Math.round(c0[0]+f*(c1[0]-c0[0]))},${Math.round(c0[1]+f*(c1[1]-c0[1]))},${Math.round(c0[2]+f*(c1[2]-c0[2]))})`;
+      }
+    }
+    return `rgb(178,24,43)`;
+  }
+
+  // ── Choropleth update ──────────────────────────────────────────────────────
+  function updateChoropleth() {
+    if (!_data || !_geoJSON) return;
+    const metric = document.getElementById("metric-select").value;
+    const isRatio = RATIO_METRICS.has(metric);
+
+    // Ratio metrics: hide Neutral (undefined) and intensity breakdown (OBS has
+    // too few events per intensity class to compute meaningful country-level ratios)
+    const neutralBtn = document.querySelector("#phase-group .ctrl-btn[data-phase='neutral']");
+    neutralBtn.style.display = isRatio ? "none" : "";
+    document.getElementById("intensity-group").style.display = isRatio ? "none" : "";
+    document.getElementById("intensity-heading").style.display = isRatio ? "none" : "";
+
+    if (isRatio) {
+      if (_activePhase === "neutral") {
+        _activePhase = "el_nino";
+        document.querySelectorAll("#phase-group .ctrl-btn").forEach(b => {
+          b.classList.toggle("active", b.dataset.phase === "el_nino");
+        });
+      }
+      if (_activeIntensity !== "all") {
+        _activeIntensity = "all";
+        document.querySelectorAll("#intensity-group .ctrl-btn").forEach(b => {
+          b.classList.toggle("active", b.dataset.intensity === "all");
+        });
+      }
+    }
+
+    // Collect values for the current phase/intensity selection (only needed for sequential scale)
+    const vals = [];
+    if (!isRatio) {
+      for (const iso of Object.keys(_data.by_country)) {
+        const v = _getValue(iso, metric);
+        if (v != null && isFinite(v) && v > 0) vals.push(v);
+      }
+      vals.sort((a, b) => a - b);
+    }
+
+    let colorFn, vmax, vmin;
+    if (isRatio) {
+      // Fixed ±100% symmetric scale - values outside are clamped to the edge color
+      vmin = -100; vmax = 100;
+      colorFn = v => ratioColor((Math.max(-100, Math.min(100, ratioPct(v))) + 100) / 200);
+    } else {
+      // Sequential with log scale, recomputed per phase
+      vmax = vals.length ? vals[Math.floor(vals.length * 0.95)] : 1;
+      if (!vmax || vmax <= 0) vmax = 1;  // guard against zero/empty
+      vmin = 0;
+      const logMax = Math.log1p(vmax);
+      colorFn = v => {
+        if (v == null || isNaN(v) || logMax <= 0) return "#d4d8de";
+        return scaleColor(Math.min(Math.log1p(v) / logMax, 1));
+      };
+    }
+
+    // Color map
+    _svgG.selectAll(".country-path").each(function(d) {
+      const iso = d.properties._iso3;
+      const v = iso ? _getValue(iso, metric) : null;
+      if (v === null || (!isRatio && v <= 0)) {
+        d3.select(this).attr("fill", "url(#hatch)");
+      } else {
+        const c = colorFn(v);
+        d3.select(this).attr("fill", c);
+      }
+    });
+
+    // Update legend
+    _drawLegend(metric, vmin, vmax, isRatio);
+
+    // Describe context in sidebar
+    const phaseLabel = _activeIntensity === "all"
+      ? PHASE_LABELS[_activePhase]
+      : PHASE_LABELS[_activeIntensity];
+    // Show ENSO months on record, not EM-DAT event count
+    const phaseMonths = _activeIntensity === "all"
+      ? `${_data.phase_summary?.[_activePhase]?.n_years ?? "?"} years on record`
+      : `${_data.intensity_summary?.[_activeIntensity]?.n_months ?? "?"} months on record`;
+    document.getElementById("sidebar-meta").textContent =
+      `${phaseLabel} · ${phaseMonths} · ${METRIC_LABELS[metric]}`;
+  }
+
+  function _drawLegend(metric, vmin, vmax, isRatio) {
+    const legend = document.getElementById("map-legend");
+    legend.style.display = "";
+    document.getElementById("legend-title").textContent = METRIC_LABELS[metric];
+    const canvas = document.getElementById("legend-cbar");
+    const CSS_W = 200, CSS_H = 12;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = CSS_W * dpr;
+    canvas.height = CSS_H * dpr;
+    canvas.style.width  = CSS_W + "px";
+    canvas.style.height = CSS_H + "px";
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    // Draw N=CSS_W steps so each pixel maps cleanly to a color
+    for (let x = 0; x < CSS_W; x++) {
+      const t = x / (CSS_W - 1);
+      ctx.fillStyle = isRatio ? ratioColor(t) : scaleColor(t);
+      ctx.fillRect(x, 0, 1, CSS_H);
+    }
+    if (isRatio) {
+      document.getElementById("legend-min").textContent = Math.round(vmin) + "%";
+      document.getElementById("legend-mid").textContent = "0%";
+      document.getElementById("legend-max").textContent = "+" + Math.round(vmax) + "%";
+    } else {
+      document.getElementById("legend-min").textContent = "0";
+      document.getElementById("legend-mid").textContent = (vmax / 2).toFixed(vmax > 100 ? 0 : 1);
+      document.getElementById("legend-max").textContent = vmax > 100
+        ? "≥" + Math.round(vmax) : "≥" + vmax.toFixed(1);
+    }
+  }
+
+  // ── Phase / intensity control clicks ──────────────────────────────────────
+  function _setupControls() {
+    document.querySelectorAll("#phase-group .ctrl-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#phase-group .ctrl-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        _activePhase = btn.dataset.phase;
+        _activeIntensity = "all";
+        // Sync intensity buttons: deactivate all
+        document.querySelectorAll("#intensity-group .ctrl-btn").forEach(b => b.classList.remove("active"));
+        document.querySelector("#intensity-group .ctrl-btn[data-intensity='all']").classList.add("active");
+        updateChoropleth();
+        if (_selectedISO) _renderDetail(_selectedISO);
+      });
+    });
+
+    document.querySelectorAll("#intensity-group .ctrl-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#intensity-group .ctrl-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        _activeIntensity = btn.dataset.intensity;
+        // Sync phase buttons if intensity implies a family
+        if (_activeIntensity !== "all") {
+          const fam = INTENSITY_FAMILY[_activeIntensity];
+          if (fam) {
+            _activePhase = fam;
+            document.querySelectorAll("#phase-group .ctrl-btn").forEach(b => {
+              b.classList.toggle("active", b.dataset.phase === fam);
+            });
+          }
+        }
+        updateChoropleth();
+        if (_selectedISO) _renderDetail(_selectedISO);
+      });
+    });
+    // Set "all" intensity active by default
+    document.querySelector("#intensity-group .ctrl-btn[data-intensity='all']").classList.add("active");
+  }
+
+  // ── Country click / detail panel ──────────────────────────────────────────
+  function _onCountryClick(iso, name) {
+    if (!iso || !_data.by_country[iso]) return;
+    _selectedISO = iso;
+    _svgG.selectAll(".country-path").classed("selected", d => d.properties._iso3 === iso);
+    _renderDetail(iso);
+  }
+
+  function closeDetail() {
+    _selectedISO = null;
+    _svgG.selectAll(".country-path").classed("selected", false);
+    document.getElementById("detail-panel").classList.remove("open");
+  }
+  window.closeDetail = closeDetail;
+
+  function _renderDetail(iso) {
+    const country = _data.by_country[iso];
+    if (!country) return;
+
+    document.getElementById("detail-panel").classList.add("open");
+    document.getElementById("detail-country-name").textContent = country.name;
+    document.getElementById("detail-country-total").textContent =
+      `${country.total_events} events recorded 1980-2025 (EM-DAT; may undercount pre-2000)`;
+
+    const metric = document.getElementById("metric-select").value;
+    document.getElementById("detail-chart-label").textContent = METRIC_LABELS[metric];
+
+    // Build chart: bars across 7 intensity classes
+    const labels = INTENSITY_ORDER.map(k => PHASE_LABELS[k] || k);
+    const vals = INTENSITY_ORDER.map(k => country.by_intensity[k]?.[metric] ?? 0);
+    const colors = INTENSITY_ORDER.map(k =>
+      k.includes("el_nino") ? "#ef4444" :
+      k.includes("la_nina") ? "#3b82f6" : "#9ca3af"
+    );
+
+    if (_detailChart) _detailChart.destroy();
+    const ctx = document.getElementById("detail-chart").getContext("2d");
+    _detailChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => `${METRIC_LABELS[metric]}: ${c.parsed.y?.toLocaleString() ?? "n/a"}` } },
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 30 } },
+          y: { ticks: { font: { size: 9 } }, beginAtZero: true },
+        },
+      },
+    });
+
+    // Stats table: compare El Niño, La Niña, Neutral
+    const statsEl = document.getElementById("detail-stats");
+    const metrics = [
+      ["median_deaths", "Median deaths / event"],
+      ["mean_deaths", "Mean deaths / event"],
+      ["median_damage_musd", "Median damage / event (M USD)"],
+      ["mean_damage_musd", "Mean damage / event (M USD)"],
+      ["events_per_month", "Events per month"],
+      ["n_events", "Total events"],
+    ];
+    let html = "";
+    for (const [m, label] of metrics) {
+      html += `<div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-top:0.5rem;padding-top:0.3rem;border-top:1px solid var(--border)">${label}</div>`;
+      for (const fam of ["el_nino", "la_nina", "neutral"]) {
+        const v = country.by_phase[fam]?.[m];
+        const vStr = v === null || v === undefined ? "-"
+          : m === "events_per_month" ? v.toFixed(3)
+          : m === "n_events" ? v.toLocaleString()
+          : v.toLocaleString();
+        html += `<div class="stat-row">
+          <span class="stat-label" style="color:${PHASE_COLORS[fam]}">${PHASE_LABELS[fam]}</span>
+          <span class="stat-val">${vStr}</span>
+        </div>`;
+      }
+    }
+    statsEl.innerHTML = html;
+  }
+
+  // ── Tooltip ────────────────────────────────────────────────────────────────
+  function _setupTooltip() {
+    const tooltip = document.getElementById("map-tooltip");
+    const mapArea = document.getElementById("map-area");
+
+    _svgG.selectAll(".country-path")
+      .on("mousemove", function(event, d) {
+        const iso = d.properties._iso3;
+        const name = d.properties.name;
+        const metric = document.getElementById("metric-select").value;
+        const v = iso ? _getValue(iso, metric) : null;
+        const vStr = v === null ? "no data"
+          : RATIO_METRICS.has(metric) ? (ratioPct(v) >= 0 ? "+" : "") + Math.round(ratioPct(v)) + "%"
+          : metric === "events_per_month" ? v.toFixed(3)
+          : v.toLocaleString();
+        const phaseLabel = _activeIntensity === "all"
+          ? PHASE_LABELS[_activePhase]
+          : PHASE_LABELS[_activeIntensity];
+        tooltip.textContent = `${name}  ·  ${phaseLabel}  →  ${vStr}`;
+        tooltip.style.display = "block";
+        const rect = mapArea.getBoundingClientRect();
+        tooltip.style.left = (event.clientX - rect.left + 12) + "px";
+        tooltip.style.top  = (event.clientY - rect.top  - 10) + "px";
+      })
+      .on("mouseleave", () => { tooltip.style.display = "none"; });
+  }
+
+  // ── Build SVG choropleth ──────────────────────────────────────────────────
+  function _buildMap() {
+    const svg = d3.select("#choropleth-svg");
+    const mapArea = document.getElementById("map-area");
+    const W = mapArea.clientWidth;
+    const H = Math.round(W * 0.56);   // taller aspect so poles fit
+    mapArea.style.minHeight = H + "px";
+
+    svg.attr("viewBox", `0 0 ${W} ${H}`)
+       .attr("width", W).attr("height", H)
+       .attr("preserveAspectRatio", "xMidYMid meet");
+
+    // fitSize fits the full sphere (including poles) with 10px padding
+    _projection = d3.geoNaturalEarth1();
+    _pathGen = d3.geoPath().projection(_projection);
+    _projection.fitExtent([[10, 10], [W - 10, H - 10]], { type: "Sphere" });
+
+    // Hatch pattern for countries with insufficient data
+    const defs = svg.append("defs");
+    const hatchPat = defs.append("pattern")
+      .attr("id", "hatch")
+      .attr("patternUnits", "userSpaceOnUse")
+      .attr("width", 4).attr("height", 4)
+      .attr("patternTransform", "rotate(45)");
+    // Solid light-grey background so ocean colour doesn't bleed through
+    hatchPat.append("rect")
+      .attr("width", 4).attr("height", 4)
+      .attr("fill", "#e0e0e0");
+    hatchPat.append("line")
+      .attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 4)
+      .attr("stroke", "rgba(100,100,100,0.55)").attr("stroke-width", 1.5);
+
+    // All map content goes in a <g> so zoom transforms only this group
+    _svgG = svg.append("g").attr("id", "map-g");
+
+    // Ocean background
+    _svgG.append("path")
+      .datum({ type: "Sphere" })
+      .attr("d", _pathGen)
+      .attr("fill", "#c8d8e8");
+
+    // Graticule
+    _svgG.append("path")
+      .datum(d3.geoGraticule().step([30, 30])())
+      .attr("d", _pathGen)
+      .attr("fill", "none")
+      .attr("stroke", "rgba(100,120,140,0.2)")
+      .attr("stroke-width", 0.5);
+
+    // Countries
+    _svgG.selectAll(".country-path")
+      .data(_geoJSON.features)
+      .join("path")
+      .attr("class", "country-path")
+      .attr("d", _pathGen)
+      .attr("fill", "#d4d8de")
+      .on("click", (event, d) => {
+        event.stopPropagation();
+        _onCountryClick(d.properties._iso3, d.properties.name);
+      });
+
+    // Click on ocean → close detail
+    svg.on("click", () => closeDetail());
+
+    // ── Zoom behaviour ──────────────────────────────────────────────────────
+    _zoom = d3.zoom()
+      .scaleExtent([0.5, 20])
+      .on("zoom", (event) => {
+        _svgG.attr("transform", event.transform);
+        // Scale stroke-width inversely so borders stay thin when zoomed in
+        const k = event.transform.k;
+        _svgG.selectAll(".country-path")
+          .attr("stroke-width", 0.4 / k + "px");
+      });
+
+    svg.call(_zoom)
+      // Disable double-click zoom (we use it for country select)
+      .on("dblclick.zoom", null);
+
+    _setupTooltip();
+  }
+
+  function resetZoom() {
+    d3.select("#choropleth-svg")
+      .transition().duration(500)
+      .call(_zoom.transform, d3.zoomIdentity);
+  }
+  window.resetZoom = resetZoom;
+
+  // ── Assign ISO3 to GeoJSON features ──────────────────────────────────────
+  function _enrichGeoJSON() {
+    // Build reverse lookup: geo name → ISO3 from explicit alias table
+    const nameToISO = {};
+    for (const [iso, geoName] of Object.entries(ISO_TO_GEO_NAME)) {
+      if (geoName) nameToISO[geoName] = iso;
+    }
+    // Build exact lowercase lookup: emdat country name → ISO3
+    const emdatNameToISO = {};
+    for (const [iso, c] of Object.entries(_data.by_country)) {
+      emdatNameToISO[c.name.toLowerCase()] = iso;
+    }
+
+    for (const feat of _geoJSON.features) {
+      const geoName = feat.properties.name;
+      // 1. Explicit alias table
+      if (nameToISO[geoName]) {
+        feat.properties._iso3 = nameToISO[geoName];
+        continue;
+      }
+      // 2. Exact case-insensitive match against EM-DAT country name
+      const iso = emdatNameToISO[geoName.toLowerCase()];
+      if (iso) feat.properties._iso3 = iso;
+      // No fuzzy/partial match - ambiguous and causes wrong assignments
+    }
+  }
+
+  // ── About toggle ─────────────────────────────────────────────────────────
+  function toggleAbout() {
+    const body = document.getElementById("about-body");
+    const arrow = document.getElementById("about-arrow");
+    const open = body.classList.toggle("open");
+    arrow.textContent = open ? "▼" : "▶";
+  }
+  window.toggleAbout = toggleAbout;
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  async function init() {
+    const loading = document.getElementById("map-loading");
+    try {
+      [_data, _geoJSON] = await Promise.all([
+        fetch("data/emdat_backtest.json").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status} emdat_backtest.json`); return r.json(); }),
+        fetch("data/maps/ne_110m_countries.geojson").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status} geojson`); return r.json(); }),
+      ]);
+
+      _enrichGeoJSON();
+      _buildMap();
+      updateChoropleth();
+      _setupControls();
+
+      // Caveats
+      const ul = document.getElementById("about-caveats");
+      ul.innerHTML = (_data.meta?.caveats || []).map(c => `<li>${c}</li>`).join("");
+
+      loading.style.display = "none";
+    } catch(err) {
+      loading.textContent = `Error: ${err.message}`;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>

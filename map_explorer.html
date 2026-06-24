@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teleconnections - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <style>
+    /* ── Map page layout ───────────────────────────────────────────────── */
+    .map-page { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Controls bar */
+    .map-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface-2, #f0f4f8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .map-ctrl-group { display: flex; flex-direction: column; gap: 0.2rem; }
+    .map-ctrl-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .map-ctrl-group select {
+      padding: 0.3rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      min-width: 160px;
+    }
+    .map-ctrl-group select:focus { outline: none; border-color: var(--accent); }
+
+    /* Map container */
+    #map-container {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    #map { height: 560px; background: transparent; position: relative; }
+
+    /* Colorbar */
+    #colorbar {
+      position: absolute;
+      bottom: 28px;
+      right: 12px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.75rem;
+      z-index: 500;
+      min-width: 160px;
+    }
+    #colorbar-title { font-weight: 600; margin-bottom: 4px; font-size: 0.72rem; color: var(--text); }
+    #colorbar-bar {
+      height: 12px;
+      border-radius: 3px;
+      margin-bottom: 3px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #colorbar-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+    }
+
+    /* Tooltip */
+    #map-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(20,30,50,0.88);
+      color: #fff;
+      padding: 0.35rem 0.6rem;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      z-index: 600;
+      display: none;
+      white-space: nowrap;
+    }
+
+    /* Drill-down breadcrumb on map */
+    #map-breadcrumb {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      z-index: 500;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .bc-item { cursor: pointer; color: var(--accent); font-weight: 600; }
+    .bc-item:hover { text-decoration: underline; }
+    .bc-item.bc-current { color: var(--text); cursor: default; font-weight: 600; }
+    .bc-sep { color: var(--text-muted); }
+
+    /* Loading overlay */
+    #map-loading {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 700;
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 0.95rem;
+      display: none;
+    }
+
+    /* Coverage note */
+    #coverage-note {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 0.3rem 0;
+    }
+
+    /* Hazard toggle */
+    .hazard-toggle {
+      display: flex;
+      gap: 0.3rem;
+    }
+    .hazard-btn {
+      padding: 0.28rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .hazard-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Alert panel */
+    #alert-panel {
+      display: none;
+      background: var(--surface-2, #f0f4f8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+    }
+    #alert-panel h3 {
+      margin: 0 0 0.6rem 0;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .alert-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    .alert-table th {
+      text-align: left;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .alert-table td {
+      padding: 0.28rem 0.5rem;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      vertical-align: middle;
+    }
+    .signal-pill {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .signal-watch   { background: #fef3c7; color: #92400e; }
+    .signal-alert   { background: #fee2e2; color: #991b1b; }
+    .signal-neutral { background: #f1f5f9; color: #64748b; }
+    .signal-positive{ background: #dcfce7; color: #166534; }
+    #alert-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+  </style>
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="map_explorer">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" data-nav-item="forecast_enso">ENSO</a>
+            <a href="forecast_maps.html" data-nav-item="forecast_maps">Maps</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" class="active" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">Teleconnections - Interactive ENSO Rainfall Map</h1>
+    <p class="page-subtitle">
+      Gridded phase-composite rainfall indicators on an interactive globe.
+      Drag to rotate · Scroll to zoom · Click a country to drill down.
+    </p>
+
+    <div class="card">
+      <h2>What am I looking at?</h2>
+      <p style="font-size:0.9rem;margin-bottom:0.8rem">
+        A <strong>teleconnection</strong> is the tendency for El Niño or La Niña in the Pacific to shift
+        weather far away. Each map shows, for the chosen ENSO phase and season, how a rainfall, drought
+        or heat indicator typically <strong>departs from normal</strong> - built by compositing every past
+        event of that phase. Set the <em>source</em>, <em>season</em>, <em>phase</em> and <em>hazard</em>
+        above: blue/green areas are wetter or cooler than usual, brown/red drier or hotter.
+      </p>
+      <div class="skill-definitions">
+        <p><strong>Data sources.</strong> <strong>CHIRPS</strong> - satellite-plus-gauge rainfall
+           observations. <strong>ERA5</strong> - reanalysis used for the heat indices. <strong>CESM2</strong>
+           - a 50-member climate-model ensemble, useful where the observed record is short.</p>
+        <p><strong>Hazards and indices.</strong> <em>Wet</em>: RX10day (heaviest 10-day rainfall) and totals.
+           <em>Drought</em>: CDD (longest run of consecutive dry days). <em>Heat stress</em>:
+           <strong>WBGT</strong> - wet-bulb globe temperature, a combined heat-and-humidity index for human
+           heat danger - and UTCI, a similar "feels-like" comfort index.</p>
+        <p><strong>Anomaly vs absolute.</strong> "Anomaly" is the difference from ENSO-neutral years, so it
+           isolates the El Niño / La Niña effect. "Absolute" is the raw value during that phase.</p>
+        <p><strong>Reading dry regions.</strong> Over hyper-arid areas such as the Sahara or Arabian Peninsula,
+           rainfall is near zero, so a rainfall anomaly there is statistically noisy and not physically
+           meaningful - treat colour over deserts with caution. Where shown, robustness dots mark pixels at
+           which fewer than 60% of events agree on the sign of the change.</p>
+      </div>
+    </div>
+
+    <div class="card map-page">
+
+      <!-- Controls -->
+      <div class="map-controls">
+        <div class="map-ctrl-group">
+          <label>Source</label>
+          <select id="ctrl-source" onchange="setSource(this.value)">
+            <option value="obs">CHIRPS Observations (precip)</option>
+            <option value="era5">ERA5 Observations (heat indices)</option>
+            <option value="cesm2">CESM2 Large Ensemble</option>
+          </select>
+        </div>
+        <div class="map-ctrl-group">
+          <label>Season</label>
+          <select id="ctrl-season">
+            <option value="djf">DJF (Dec-Feb)</option>
+            <option value="mam">MAM (Mar-May)</option>
+            <option value="jja">JJA (Jun-Aug)</option>
+            <option value="son">SON (Sep-Nov)</option>
+          </select>
+        </div>
+        <div class="map-ctrl-group">
+          <label>ENSO Phase</label>
+          <select id="ctrl-phase">
+            <option value="extreme_la_nina">Extreme La Niña</option>
+            <option value="strong_la_nina">Strong La Niña</option>
+            <option value="moderate_la_nina">Moderate La Niña</option>
+            <option value="neutral">Neutral</option>
+            <option value="moderate_el_nino">Moderate El Niño</option>
+            <option value="strong_el_nino">Strong El Niño</option>
+            <option value="extreme_el_nino">Extreme El Niño</option>
+          </select>
+        </div>
+        <div class="map-ctrl-group">
+          <label>Hazard</label>
+          <div class="hazard-toggle">
+            <button class="hazard-btn active" id="hazard-wet" onclick="setHazard('wet')">Wet</button>
+            <button class="hazard-btn" id="hazard-dry" onclick="setHazard('dry')">Drought / Dry</button>
+            <button class="hazard-btn" id="hazard-heat" onclick="setHazard('heat')">Heat stress</button>
+          </div>
+        </div>
+        <div class="map-ctrl-group">
+          <label>Metric</label>
+          <select id="ctrl-variable"></select>
+        </div>
+        <div class="map-ctrl-group">
+          <label>Projection</label>
+          <select id="ctrl-projection">
+            <option value="orthographic" selected>Orthographic (globe)</option>
+            <option value="robinson">Robinson (flat)</option>
+            <option value="naturalEarth">Natural Earth</option>
+          </select>
+        </div>
+        <div class="map-ctrl-group" id="stipple-toggle-row" style="display:none">
+          <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer">
+            <input type="checkbox" id="ctrl-stipple" checked onchange="toggleStippling()">
+            <span>Show robustness dots</span>
+          </label>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem">
+            Dots mark pixels where &lt;60% of events agree in sign with the composite
+          </div>
+        </div>
+        <div class="map-ctrl-group" id="prob-ratio-controls" style="display:none">
+          <label>Min. prob. change shown</label>
+          <select id="ctrl-prob-threshold" onchange="setProbThreshold()">
+            <option value="0">All pixels</option>
+            <option value="30" selected>≥ 30% change</option>
+            <option value="50">≥ 50% change</option>
+            <option value="75">≥ 75% change</option>
+          </select>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">
+            <strong>Ratio &gt; 0 %</strong> → more likely than in neutral conditions.<br>
+            <strong>Ratio &lt; 0 %</strong> → less likely than in neutral conditions.<br>
+            Ratio = (P<sub>phase</sub> − P<sub>neutral</sub>) / P<sub>neutral</sub> × 100.
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div id="map-container">
+        <div id="map"></div>
+        <div id="map-breadcrumb">
+          <span class="bc-item bc-current" id="bc-continent">World</span>
+        </div>
+        <div id="colorbar">
+          <div id="colorbar-title">-</div>
+          <canvas id="colorbar-bar" height="12" style="width:100%;display:block;"></canvas>
+          <div id="colorbar-labels"><span id="cb-min">-</span><span id="cb-mid">0</span><span id="cb-max">-</span></div>
+        </div>
+        <div id="map-tooltip"></div>
+        <div id="map-loading">Loading data…</div>
+      </div>
+
+      <div id="coverage-note"></div>
+
+      <!-- Alert Signal Panel - shown when subregion/country selected -->
+      <div id="alert-panel">
+        <h3 id="alert-panel-title">Forecast × Impact Signal</h3>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 0.7rem">
+          Current SEAS5 forecast probabilities weighted by historical ENSO impact direction for the selected region and season.
+        </p>
+        <table class="alert-table">
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Valid month</th>
+              <th>Most likely phase</th>
+              <th>Phase prob.</th>
+              <th>Historical impact signal</th>
+              <th>Action signal</th>
+            </tr>
+          </thead>
+          <tbody id="alert-tbody"></tbody>
+        </table>
+        <div id="alert-note"></div>
+      </div>
+
+    </div><!-- .card -->
+  </main>
+
+  <script src="static/lib/d3.min.js?v=20260624d"></script>
+  <script src="static/lib/d3-geo-projection.min.js?v=20260624d"></script>
+  <script src="static/js/map_explorer.js?v=20260624d"></script>
+  <script src="static/js/site.js?v=20260624d"></script>
+</body>
+</html>

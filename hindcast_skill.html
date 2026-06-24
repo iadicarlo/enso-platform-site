@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <style>
+    .skill-toolbar { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+    .skill-toolbar button {
+      padding:0.3rem 0.9rem; border:1px solid var(--border); border-radius:6px;
+      background:var(--card-bg); color:var(--text-muted); font-weight:600; cursor:pointer;
+    }
+    .skill-toolbar button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .hm-wrap { overflow-x:auto; margin-bottom:1.5rem; }
+    table.heatmap { border-collapse:collapse; font-size:0.78rem; }
+    table.heatmap th, table.heatmap td {
+      text-align:center; padding:0; width:38px; height:30px; border:1px solid #fff;
+    }
+    table.heatmap th { font-weight:600; color:var(--text-muted); background:transparent; }
+    table.heatmap td.cell { color:#1a1a1a; font-variant-numeric:tabular-nums; }
+    table.heatmap td.rowlab, table.heatmap th.corner { color:var(--text-muted); font-weight:600; width:auto; padding:0 8px; }
+    .hm-title { font-weight:700; margin:0.4rem 0; }
+    .hm-axis { font-size:0.72rem; color:var(--text-muted); }
+    .cbar { display:flex; align-items:center; gap:0.5rem; font-size:0.72rem; color:var(--text-muted); margin:0.4rem 0 1rem; }
+    .cbar-grad { height:12px; width:220px; border-radius:3px;
+      background:linear-gradient(to right,#2c7bb6,#abd9e9,#ffffbf,#fdae61,#d7191c); border:1px solid var(--border); }
+  </style>
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="hindcast_skill">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" data-nav-item="forecast_enso">ENSO</a>
+            <a href="forecast_maps.html" data-nav-item="forecast_maps">Maps</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle active" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" class="active" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">ENSO Index Skill - Hindcast Verification</h1>
+    <p class="page-subtitle">
+      Temporal correlation between the <strong>hindcast ensemble-mean</strong> NINO index and
+      <strong>observations</strong>, as a function of start month and lead time, over the
+      <span id="hc-period">1993-2016</span> hindcast period. Computed exactly as in the
+      <a href="https://confluence.ecmwf.int/display/CKB/C3S+seasonal+forecasts+verification+plots"
+         target="_blank" rel="noopener">C3S seasonal verification</a> notebooks
+      (correlation of mean-of-members vs ERA5/observed indices).
+    </p>
+
+    <div class="card">
+      <h2>What am I looking at?</h2>
+      <p style="font-size:0.9rem;margin-bottom:0.8rem">
+        Each heatmap below grades how <strong>skilful</strong> a forecast model has been at predicting
+        ENSO, by replaying its past forecasts (hindcasts) and comparing them against what was actually
+        observed. Higher, redder numbers mean more reliable; pale, lower numbers mean less reliable.
+      </p>
+      <div class="skill-definitions">
+        <p><strong>SST</strong> = sea-surface temperature, the ocean signal that defines El Niño and La Niña.</p>
+        <p><strong>Niño 3.4 / Niño 3 / Niño 4</strong> = standard boxes in the tropical Pacific where that SST
+           is averaged. Niño 3.4 is the headline ENSO index; Niño 3 also carries the rainfall signal we use to flag extreme events.</p>
+        <p><strong>Lead time (L1-L6, the rows)</strong> = how many months ahead the forecast looks. L1 = next
+           month, L6 = six months ahead. Skill naturally fades at longer leads.</p>
+        <p><strong>Start month (the columns)</strong> = the calendar month the forecast was launched from. The dip
+           around boreal spring is the well-known "spring predictability barrier."</p>
+        <p><strong>Correlation (0 to 1)</strong> = how closely the model's forecasts tracked reality across all
+           hindcast years. 1.0 = perfect, about 0.6+ = useful, near 0 = no skill. For example, 0.85 at L3 means
+           the model reliably anticipated ENSO three months ahead.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="skill-toolbar" id="model-toolbar"></div>
+      <div class="cbar">
+        <span>0.0</span><div class="cbar-grad"></div><span>1.0</span>
+        <span style="margin-left:0.6rem">temporal correlation (hindcast mean vs obs)</span>
+      </div>
+      <div id="heatmaps"><p style="color:var(--text-muted)">Loading skill heatmaps…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>How to read this</h2>
+      <ul class="skill-notes-list">
+        <li>Each cell is the correlation, across hindcast years, between the ensemble-mean NINO index
+            and the observed index for that <em>start month</em> (column) and <em>lead time</em> (row).</li>
+        <li>Higher (red) = the model reliably tracks observed ENSO at that start/lead. Skill drops at
+            longer leads and across the boreal-spring predictability barrier.</li>
+        <li>Forecast probabilities elsewhere on the site use the raw ensemble fraction in each ENSO class,
+            with each member bias- and amplitude-corrected to the hindcast
+            (<em>z = (anomaly − μ<sub>hindcast</sub>) / σ<sub>hindcast</sub></em>); no statistical calibration.</li>
+      </ul>
+    </div>
+  </main>
+
+  <script>
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let SKILL = null, CURRENT = null;
+
+    // diverging-ish RdYlBu_r ramp for correlation in [0,1] (negatives clamp to blue)
+    function corrColor(v){
+      if (v === null || v === undefined || isNaN(v)) return "#e9eef3";
+      const stops = [[0.0,[44,123,182]],[0.25,[171,217,233]],[0.5,[255,255,191]],
+                     [0.75,[253,174,97]],[1.0,[215,25,28]]];
+      let x = Math.max(0, Math.min(1, v));
+      for (let i=0;i<stops.length-1;i++){
+        const [a,ca]=stops[i],[b,cb]=stops[i+1];
+        if (x>=a && x<=b){
+          const t=(x-a)/(b-a);
+          const c=ca.map((ch,k)=>Math.round(ch+(cb[k]-ch)*t));
+          return `rgb(${c[0]},${c[1]},${c[2]})`;
+        }
+      }
+      return "#d7191c";
+    }
+    function textColor(v){ return (v!==null && v>=0.35 && v<=0.8) ? "#1a1a1a" : "#fff"; }
+
+    function renderModel(model){
+      CURRENT = model;
+      document.querySelectorAll("#model-toolbar button")
+        .forEach(b=>b.classList.toggle("active", b.dataset.model===model));
+      const m = SKILL.models[model];
+      const el = document.getElementById("heatmaps");
+      if (!m){ el.innerHTML = "<p>No data for this model.</p>"; return; }
+      const regions = SKILL.regions;
+      let html = "";
+      regions.forEach(rl=>{
+        const grid = m.corr[rl];            // [lead-1][start-1]
+        if (!grid) return;
+        html += `<div class="hm-title">${rl} - ${m.label}</div>`;
+        html += `<div class="hm-axis">columns = start month · rows = lead time (months ahead)</div>`;
+        html += `<div class="hm-wrap"><table class="heatmap"><thead><tr><th class="corner">lead \\ start</th>`;
+        MONTHS.forEach(mo=> html += `<th>${mo}</th>`);
+        html += `</tr></thead><tbody>`;
+        for (let lt=0; lt<6; lt++){
+          html += `<tr><td class="rowlab">L${lt+1}</td>`;
+          for (let sm=0; sm<12; sm++){
+            const v = grid[lt][sm];
+            const bg = corrColor(v);
+            const tx = v===null||isNaN(v) ? "#999" : textColor(v);
+            const lbl = v===null||isNaN(v) ? "·" : v.toFixed(2);
+            html += `<td class="cell" style="background:${bg};color:${tx}">${lbl}</td>`;
+          }
+          html += `</tr>`;
+        }
+        html += `</tbody></table></div>`;
+      });
+      el.innerHTML = html;
+    }
+
+    fetch("data/hindcast_skill.json").then(r=>r.json()).then(d=>{
+      SKILL = d;
+      document.getElementById("hc-period").textContent = (d.hindcast_period||"").replace("-","-");
+      const tb = document.getElementById("model-toolbar");
+      const models = Object.keys(d.models||{});
+      if (!models.length){ document.getElementById("heatmaps").innerHTML="<p>No skill data available.</p>"; return; }
+      tb.innerHTML = models.map(mk=>`<button data-model="${mk}">${d.models[mk].label}</button>`).join("");
+      tb.querySelectorAll("button").forEach(b=> b.onclick=()=>renderModel(b.dataset.model));
+      renderModel(models[0]);
+    }).catch(e=>{
+      document.getElementById("heatmaps").innerHTML =
+        `<p style="color:#c62828">Error loading hindcast_skill.json: ${e.message}</p>`;
+    });
+  </script>
+  <script src="static/js/site.js?v=20260624d"></script>
+</body>
+</html>

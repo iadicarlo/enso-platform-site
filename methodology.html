@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Methodology - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="methodology">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" data-nav-item="forecast_enso">ENSO</a>
+            <a href="forecast_maps.html" data-nav-item="forecast_maps">Maps</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">Methodology</h1>
+    <p class="page-subtitle">
+      How the forecasts, the ENSO classification, the skill verification, and the teleconnection
+      composites are produced.
+    </p>
+
+    <div class="card">
+      <h2>ENSO index &amp; 7-class classification</h2>
+      <div class="prose">
+        <p>
+          For each ensemble member we compute area-weighted NINO sea-surface-temperature indices
+          (NINO3.4, NINO3, NINO4) and the NINO3 precipitation anomaly. Each index is
+          <strong>detrended for global warming</strong> by regression on a Berkeley Earth global
+          warming index (GWI), so the classification reflects internal tropical-Pacific variability
+          rather than the forced warming trend.
+        </p>
+        <p>The standardized NINO3.4 index <em>z</em> is mapped to seven classes:</p>
+        <ul>
+          <li><strong>Neutral</strong> - |z| &lt; 0.5</li>
+          <li><strong>Moderate</strong> El Niño / La Niña - |z| ≥ 0.5</li>
+          <li><strong>Strong</strong> - NINO3 (El Niño) / NINO4 (La Niña) |z| ≥ 1.25</li>
+          <li><strong>Extreme</strong> - |z| ≥ 1.75 <em>and</em>, for El Niño, a
+              <strong>NINO3 precipitation anomaly ≥ 5 mm/day</strong></li>
+        </ul>
+        <p>
+          The precipitation requirement is deliberate: a truly <em>extreme</em> El Niño is
+          distinguished not by SST alone but by the eastward shift of deep convection into the
+          eastern Pacific, captured by the NINO3 rainfall response.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Bias &amp; amplitude correction - no statistical calibration</h2>
+      <div class="prose">
+        <p>
+          Following the <strong>ECCC / Merryfield &amp; Lee</strong> approach used for the Copernicus
+          C3S seasonal products, each member's index is corrected to the
+          <strong>1993-2016 common hindcast period</strong>: the hindcast mean is removed and the
+          variance is rescaled to match observations,
+        </p>
+        <p style="text-align:center;font-size:1.05rem">
+          <em>z = (anomaly − μ<sub>hindcast</sub>) / σ<sub>hindcast</sub></em>
+          &nbsp;for each start month and lead time.
+        </p>
+        <p>
+          This removes both the mean bias and the model's ENSO <em>amplitude</em> bias - seasonal
+          models typically over-amplify ENSO by ~40% (the cold-tongue bias). Probabilities are then
+          the <strong>raw fraction of ensemble members</strong> in each class. <em>No</em> Platt or
+          isotonic calibration is applied: the spread of the bias-corrected ensemble <em>is</em> the
+          probability.
+        </p>
+        <p>
+          On the 1993-2016 hindcast this reproduces observed extreme-event frequencies
+          (extreme El Niño 1.7% modelled vs 2.1% observed; extreme La Niña 10.5% vs 7.6%), which a
+          calibration layer would otherwise obscure.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Skill verification</h2>
+      <div class="prose">
+        <p>
+          Skill is shown directly as the <strong>temporal correlation</strong> between the hindcast
+          <em>ensemble-mean</em> NINO index and observations, as a function of start month and lead
+          time, for each NINO region including NINO3 precipitation - exactly the
+          <a href="https://confluence.ecmwf.int/display/CKB/C3S+seasonal+forecasts+verification+plots"
+             target="_blank" rel="noopener">C3S seasonal-verification</a> heatmaps. Correlation falls
+          at longer leads and across the boreal-spring predictability barrier. See the
+          <a href="hindcast_skill.html">Skill tab</a>.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Teleconnection composites</h2>
+      <div class="prose">
+        <p>
+          The Teleconnections maps composite climate-impact indicators (heat: UTCI, WBGT, heatwave
+          days; precipitation extremes: RX10day, consecutive dry days) by ENSO phase, from ERA5/CHIRPS
+          observations and a CESM2 large ensemble. Fields are <strong>detrended for global warming</strong>
+          and standardized by the <strong>ENSO standard deviation over 1980-2014</strong>; anomalies are
+          shown relative to the neutral composite.
+        </p>
+        <p>
+          Because the teleconnection composites use a long observational/ensemble baseline, they use a
+          different normalization from the forecasts (which are constrained to the 1993-2016 hindcast
+          period).
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Data sources and references</h2>
+      <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:0.8rem">
+        Every dataset used here is open and freely available. Please cite the original sources below if you reuse this material.
+      </p>
+      <div class="prose">
+        <ul style="font-size:0.9rem">
+          <li><strong>ECMWF SEAS5</strong> (System 51) - seasonal forecasts and hindcasts.
+              Johnson et al. (2019), <em>Geosci. Model Dev.</em> 12, 1087-1117.
+              <a href="https://doi.org/10.5194/gmd-12-1087-2019" target="_blank" rel="noopener">doi:10.5194/gmd-12-1087-2019</a>.
+              Accessed via the <a href="https://cds.climate.copernicus.eu" target="_blank" rel="noopener">Copernicus Climate Data Store (C3S)</a>.</li>
+          <li><strong>Météo-France System 9</strong> - seasonal forecasts and hindcasts, via the
+              <a href="https://cds.climate.copernicus.eu" target="_blank" rel="noopener">Copernicus C3S multi-system seasonal service</a>.</li>
+          <li><strong>ERA5 reanalysis</strong> - basis for the heat-stress indices (WBGT, UTCI).
+              Hersbach et al. (2020), <em>Q. J. R. Meteorol. Soc.</em> 146, 1999-2049.
+              <a href="https://doi.org/10.1002/qj.3803" target="_blank" rel="noopener">doi:10.1002/qj.3803</a>.</li>
+          <li><strong>CHIRPS v2.0</strong> - daily precipitation (1981-present) for the rainfall teleconnection composites.
+              Funk et al. (2015), <em>Sci. Data</em> 2, 150066.
+              <a href="https://doi.org/10.1038/sdata.2015.66" target="_blank" rel="noopener">doi:10.1038/sdata.2015.66</a>.</li>
+          <li><strong>CESM2 Large Ensemble (LENS2)</strong> - ~50 members for the model teleconnection composites.
+              Rodgers et al. (2021), <em>Earth Syst. Dynam.</em> 12, 1393-1411.
+              <a href="https://doi.org/10.5194/esd-12-1393-2021" target="_blank" rel="noopener">doi:10.5194/esd-12-1393-2021</a>.</li>
+          <li><strong>COBE-SST 2</strong> - observed SST for the ENSO indices.
+              Hirahara et al. (2014), <em>J. Climate</em> 27, 57-75.
+              <a href="https://doi.org/10.1175/JCLI-D-12-00837.1" target="_blank" rel="noopener">doi:10.1175/JCLI-D-12-00837.1</a>.</li>
+          <li><strong>GPCP</strong> - observed precipitation for the ENSO precipitation index.
+              Adler et al. (2018), <em>Atmosphere</em> 9, 138.
+              <a href="https://doi.org/10.3390/atmos9040138" target="_blank" rel="noopener">doi:10.3390/atmos9040138</a>.</li>
+          <li><strong>Berkeley Earth</strong> - global-warming index used to detrend the composites.
+              Rohde &amp; Hausfather (2020), <em>Earth Syst. Sci. Data</em> 12, 3469-3479.
+              <a href="https://doi.org/10.5194/essd-12-3469-2020" target="_blank" rel="noopener">doi:10.5194/essd-12-3469-2020</a>.</li>
+          <li><strong>UTCI</strong> heat-stress index - Bröde et al. (2012), <em>Int. J. Biometeorol.</em> 56, 481-494.
+              <a href="https://doi.org/10.1007/s00484-011-0454-1" target="_blank" rel="noopener">doi:10.1007/s00484-011-0454-1</a>.</li>
+          <li><strong>Country and coastline boundaries</strong> -
+              <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain).</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <script src="static/js/site.js?v=20260624d"></script>
+</body>
+</html>

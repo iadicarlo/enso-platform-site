@@ -1,0 +1,20 @@
+{
+  "variable": "ssta",
+  "init": "2026-04",
+  "leads_available": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "centres_included": [
+    "seas5",
+    "mf9",
+    "eccc5"
+  ],
+  "n_centres": 3,
+  "units": "K",
+  "stipple_threshold": 2
+}

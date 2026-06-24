@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seasonal Maps - ENSOscope</title>
+  <link rel="stylesheet" href="static/css/style.css?v=20260624d">
+  <link rel="icon" type="image/png" href="favicon.png?v=20260624d">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body data-page="seasonal_maps">
+
+  <header>
+    <div class="header-inner">
+      <a class="site-title" href="index.html"><img src="favicon.png?v=20260624d" class="site-logo" alt=""><span>ENSO</span>scope</a>
+      <nav>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="forecast">Forecast</span>
+          <div class="nav-dropdown-menu">
+            <a href="index.html" data-nav-item="forecast_enso">ENSO</a>
+          </div>
+        </div>
+        <a href="map_explorer.html" data-nav="map_explorer">Teleconnections</a>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="hindcasts">Hindcasts</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_explorer.html" data-nav-item="hindcast_enso">ENSO</a>
+          </div>
+        </div>
+        <div class="nav-dropdown">
+          <span class="nav-dropdown-toggle" data-nav="skill">Skill</span>
+          <div class="nav-dropdown-menu">
+            <a href="hindcast_skill.html" data-nav-item="skill_enso">ENSO</a>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">Seasonal Rainfall Pattern Maps</h1>
+    <p class="page-subtitle">
+      Phase-stratified rainfall patterns from CHIRPS observations (1981-2025) and the
+      CESM2 Large Ensemble model, by calendar season.
+      Select geography, then choose event type and intensity for the selected season.
+      Country views use zoomed maps, with CHIRPS masked to country borders.
+    </p>
+
+    <div class="card">
+      <!-- Season tab bar - populated by JS -->
+      <!-- Geography selector - populated by JS -->
+      <div id="geo-selector-bar"></div>
+      <!-- Season tab bar - populated by JS -->
+      <div class="tab-bar" id="season-tab-bar"></div>
+      <!-- Content area - rendered by JS -->
+      <div id="seasonal-content">
+        <p style="color:var(--text-muted)">Loading maps…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>About These Maps</h2>
+      <div class="prose">
+        <p>
+          Each figure is shown for a single ENSO event-type/intensity selection.
+          <strong>Observed maps (CHIRPS)</strong> are based on daily precipitation
+          1981-2025, regridded to 0.25°. <strong>CESM2 LENS patterns</strong> use
+          approximately 100 ensemble members over a detrended historical period,
+          providing a large-sample estimate of the forced ENSO signal.
+        </p>
+        <h3>Product descriptions</h3>
+        <ul>
+          <li><strong>RX1day Anomaly vs Neutral</strong> - seasonal-max daily rainfall anomaly relative to the neutral-phase composite.</li>
+          <li><strong>RX10day Anomaly vs Neutral</strong> - 10-day accumulation maximum anomaly relative to neutral.</li>
+          <li><strong>RX1day / RX10day Absolute</strong> - mean values (mm) without anomaly baseline removal.</li>
+          <li><strong>Probability Ratio</strong> - P(above-normal extreme | ENSO phase) / P(above-normal extreme | Neutral). Values &gt; 1 indicate elevated risk; &lt; 1 indicate suppressed risk.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <script src="static/js/app.js?v=20260624d"></script>
+  <script src="static/js/site.js?v=20260624d"></script>
+</body>
+</html>
