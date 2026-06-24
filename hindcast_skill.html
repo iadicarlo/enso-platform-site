@@ -110,6 +110,17 @@
     </div>
 
     <div class="card">
+      <h2>The actual track - hindcast vs observations</h2>
+      <p class="skill-note">
+        A correlation number is abstract, so here is the track behind it: observed (black) versus the
+        hindcast ensemble mean at <strong>3-month lead</strong> (orange), 1993-2026. The model catches
+        every major El Niño and La Niña. Switch the model in the toolbar above; pick a region below.
+      </p>
+      <div class="skill-toggle-bar" id="ts-region-bar"></div>
+      <div style="position:relative;height:320px;margin-top:0.4rem"><canvas id="ts-chart"></canvas></div>
+    </div>
+
+    <div class="card">
       <h2>Intensity discrimination - does the model get the strength right?</h2>
       <p class="skill-note">
         Correlation says the model tracks the index, but for action what matters is the
@@ -136,6 +147,7 @@
     </div>
   </main>
 
+  <script src="static/lib/chart.umd.min.js?v=20260625b"></script>
   <script>
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     let SKILL = null, CURRENT = null;
@@ -190,6 +202,7 @@
       });
       el.innerHTML = html;
       renderIntensity(model);
+      renderTimeseries(model);
     }
 
     function pctBar(label, pct, n, color){
@@ -221,18 +234,59 @@
         `<p class="skill-note" style="margin-top:0.7rem">${SKILL.models[model].label} &middot; ${SKILL.hindcast_period}. A wide gap between the two bars in each pair means the model reliably separates the intensities.</p>`;
     }
 
-    fetch("data/hindcast_skill.json?v=20260625a").then(r=>r.json()).then(d=>{
-      SKILL = d;
-      document.getElementById("hc-period").textContent = (d.hindcast_period||"").replace("-","-");
+    // ── Verification time series (obs vs hindcast ensemble mean) ──────────────
+    let TS = null, TS_REGION = null;
+    function _shortName(m){ return m==="seas5"?"SEAS5":(m==="mf9"?"Météo-France":m.toUpperCase()); }
+    function buildTsRegionBar(){
+      const bar = document.getElementById("ts-region-bar");
+      if (!bar || !TS) return;
+      if (!TS_REGION) TS_REGION = TS.regions[0].key;
+      bar.innerHTML = TS.regions.map(r =>
+        `<button class="skill-toggle-btn${r.key===TS_REGION?' active':''}" data-rkey="${r.key}">${r.label}</button>`).join("");
+      bar.querySelectorAll("button").forEach(b => b.onclick = () => {
+        TS_REGION = b.dataset.rkey; buildTsRegionBar(); renderTimeseries(CURRENT);
+      });
+    }
+    function renderTimeseries(model){
+      const ctx = document.getElementById("ts-chart");
+      if (!TS || !ctx || typeof Chart === "undefined") return;
+      const reg = TS.regions.find(r => r.key === TS_REGION) || TS.regions[0];
+      const short = _shortName(model);
+      if (window._tsChart){ try{ window._tsChart.destroy(); }catch(_){} }
+      window._tsChart = new Chart(ctx.getContext("2d"), {
+        type:"line",
+        data:{ labels: TS.t, datasets:[
+          {label:"Observed", data: TS.obs[reg.key], borderColor:"#111111", borderWidth:1.4, pointRadius:0, tension:0.2, spanGaps:true},
+          {label:`${short} hindcast (3-month lead)`, data:(TS.hindcast[model]||{})[reg.key]||[], borderColor:"#EE6C3A", borderWidth:1.4, pointRadius:0, tension:0.2, spanGaps:true},
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, animation:false,
+          interaction:{mode:"index", intersect:false},
+          plugins:{ legend:{position:"top"},
+            title:{display:true, text:`${reg.label} (${reg.unit})  -  ${short}, 1993-2026`},
+            tooltip:{callbacks:{title:(it)=> it.length ? TS.t[it[0].dataIndex] : ""}} },
+          scales:{ x:{ grid:{display:false, drawTicks:false}, ticks:{ autoSkip:false, maxRotation:0, font:{size:10},
+                     callback:(v,i)=>{ const t=TS.t[i]||""; const p=t.split("-");
+                       return (p[1]==="01" && (+p[0])%5===0) ? p[0] : ""; } } },
+                   y:{ title:{display:true, text:reg.unit} } } }
+      });
+    }
+
+    Promise.all([
+      fetch("data/hindcast_skill.json?v=20260625b").then(r=>r.json()),
+      fetch("data/skill_timeseries.json?v=20260625b").then(r=>r.json()).catch(()=>null),
+    ]).then(([d, ts])=>{
+      SKILL = d; TS = ts;
+      document.getElementById("hc-period").textContent = (d.hindcast_period||"");
       const tb = document.getElementById("model-toolbar");
       const models = Object.keys(d.models||{});
       if (!models.length){ document.getElementById("heatmaps").innerHTML="<p>No skill data available.</p>"; return; }
       tb.innerHTML = models.map(mk=>`<button data-model="${mk}">${d.models[mk].label}</button>`).join("");
       tb.querySelectorAll("button").forEach(b=> b.onclick=()=>renderModel(b.dataset.model));
+      if (TS) buildTsRegionBar();
       renderModel(models[0]);
     }).catch(e=>{
       document.getElementById("heatmaps").innerHTML =
-        `<p style="color:#c62828">Error loading hindcast_skill.json: ${e.message}</p>`;
+        `<p style="color:#c62828">Error loading skill data: ${e.message}</p>`;
     });
   </script>
   <script src="static/js/site.js?v=20260624f"></script>
