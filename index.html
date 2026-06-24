@@ -21,6 +21,31 @@
   <script src="static/lib/chart.umd.min.js?v=20260624g"></script>
   <link rel="icon" type="image/png" href="favicon.png?v=20260624g">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    /* "From forecast to action" workflow band (landing) */
+    .howto { margin: 0 0 1.5rem; padding: 1.15rem 1.4rem 1.3rem; }
+    .howto h2 { font-size: 1.18rem; margin: 0 0 0.2rem; }
+    .howto-lead { color: var(--text-muted); font-size: 0.92rem; margin: 0 0 1.05rem; max-width: 62rem; }
+    .howto-flow { display: flex; align-items: stretch; gap: 0.4rem; }
+    .howto-step { flex: 1 1 0; display: flex; flex-direction: column; }
+    .howto-ico { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.45rem; color: #1565C0; }
+    .howto-num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: #1565C0; color: #fff; font-weight: 700; font-size: 0.95rem; flex: 0 0 auto; }
+    .howto-ico svg { width: 22px; height: 22px; }
+    .howto-step h3 { font-size: 0.97rem; margin: 0 0 0.28rem; color: var(--text); }
+    .howto-step p { font-size: 0.84rem; color: var(--text-muted); margin: 0 0 0.55rem; line-height: 1.36; }
+    .howto-step a { font-size: 0.82rem; font-weight: 600; color: #1565C0; text-decoration: none; margin-top: auto; }
+    .howto-step a:hover { text-decoration: underline; }
+    .howto-step .howto-act { font-size: 0.82rem; font-weight: 700; color: #C0392B; margin-top: auto; }
+    .howto-step.act .howto-ico { color: #C0392B; }
+    .howto-step.act .howto-num { background: #C0392B; }
+    .howto-arrow { align-self: center; color: var(--border); font-size: 1.35rem; flex: 0 0 auto; }
+    @media (max-width: 820px) {
+      .howto-flow { flex-direction: column; gap: 0.85rem; }
+      .howto-arrow { display: none; }
+      .howto-step { border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+      .howto-step:last-child { border-bottom: none; padding-bottom: 0; }
+    }
+  </style>
 </head>
 <body data-page="forecast">
 
@@ -61,6 +86,49 @@
 
     <!-- Plain-language outlook headline - populated by JS from the live forecast -->
     <div id="outlook-banner" style="display:none"></div>
+
+    <!-- From forecast to action: the humanitarian decision journey across the four tabs -->
+    <section class="card howto">
+      <h2>From forecast to action</h2>
+      <p class="howto-lead">When a major El Niño or La Niña is in the forecast, here is how to turn the signal into preparation - four steps, four tabs.</p>
+      <div class="howto-flow">
+        <div class="howto-step">
+          <div class="howto-ico"><span class="howto-num">1</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3>See what's coming</h3>
+          <p>How strong an El Niño or La Niña is likely, and how many months ahead.</p>
+          <a href="#forecast-container">The probability bars below &darr;</a>
+        </div>
+        <div class="howto-arrow">&rarr;</div>
+        <div class="howto-step">
+          <div class="howto-ico"><span class="howto-num">2</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h3>Find your region's risk</h3>
+          <p>Where the event shifts rainfall, drought and heat - drill down to your country.</p>
+          <a href="map_explorer.html">Open Teleconnections &rarr;</a>
+        </div>
+        <div class="howto-arrow">&rarr;</div>
+        <div class="howto-step">
+          <div class="howto-ico"><span class="howto-num">3</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <h3>Weigh the confidence</h3>
+          <p>How reliable the forecast is at that lead and season, verified against the record.</p>
+          <a href="hindcast_skill.html">Open Skill &rarr;</a>
+        </div>
+        <div class="howto-arrow">&rarr;</div>
+        <div class="howto-step act">
+          <div class="howto-ico"><span class="howto-num">4</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+          </div>
+          <h3>Act on the lead time</h3>
+          <p>Pre-position supplies, brief teams and trigger anticipatory-action plans months ahead.</p>
+          <span class="howto-act">Months of lead time = time to act.</span>
+        </div>
+      </div>
+    </section>
 
     <!-- Current status summary - populated by JS -->
     <div id="current-status-section" style="display:none">
