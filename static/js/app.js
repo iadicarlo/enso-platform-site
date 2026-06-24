@@ -797,6 +797,7 @@ async function initForecastPage() {
   async function rerender() {
     _writeSourcesParam([...selected]);
     const fcs = await _loadForecastsForSources([...selected], "enso");
+    renderOutlookBanner(fcs, [...selected]);
     _renderMultiForecastBars(container, fcs, [...selected]);
     _renderMultiForecastMeta(metaEl, fcs, [...selected]);
     _renderMultiForecastPlume(fcs, [...selected]);
@@ -808,6 +809,85 @@ async function initForecastPage() {
   });
 
   await rerender();
+}
+
+// Plain-language outlook headline derived from the live forecast (primary = SEAS5).
+// Says, in one line, which phase/intensity is favoured and by when, with a CTA into
+// the teleconnection maps preset to that phase. Generic: works for EN, LN or neutral.
+function renderOutlookBanner(forecasts, sources) {
+  const el = document.getElementById("outlook-banner");
+  if (!el) return;
+  const primSrc = (sources || []).includes("seas5") ? "seas5" : (sources || [])[0];
+  const f = forecasts && forecasts[primSrc];
+  if (!f || !Array.isArray(f.leads) || !f.leads.length) { el.style.display = "none"; return; }
+  const leads = f.leads.slice().sort((a, b) => a.lead - b.lead);
+
+  const FAM = {
+    en: ["moderate_el_nino", "strong_el_nino", "extreme_el_nino"],
+    ln: ["moderate_la_nina", "strong_la_nina", "extreme_la_nina"],
+    neu: ["neutral"],
+  };
+  const famProb = (l, fam) => FAM[fam].reduce((s, c) => s + (l[c] || 0), 0);
+
+  // Medium-range signal: leads 3-6 (fallback to all if fewer than 2).
+  const med = leads.filter(l => l.lead >= 3);
+  const sig = med.length >= 2 ? med : leads;
+  const avgFam = fam => sig.reduce((s, l) => s + famProb(l, fam), 0) / sig.length;
+  const dom = [["en", avgFam("en")], ["ln", avgFam("ln")], ["neu", avgFam("neu")]]
+    .sort((a, b) => b[1] - a[1])[0][0];
+
+  const FAMLABEL = { en: "El Niño", ln: "La Niña", neu: "ENSO-neutral conditions" };
+  const ACCENT = { en: "#C0392B", ln: "#1565C0", neu: "#546E7A" };
+  const TINT = { en: "#FBEEEB", ln: "#EAF1FB", neu: "#ECEFF1" };
+
+  const INT = FAM[dom];                     // weakest -> strongest
+  const INTLABEL = {
+    moderate_el_nino: "moderate", strong_el_nino: "strong", extreme_el_nino: "extreme",
+    moderate_la_nina: "moderate", strong_la_nina: "strong", extreme_la_nina: "extreme", neutral: "neutral",
+  };
+  const modalIntAt = l => INT.reduce((b, c) => (l[c] || 0) > (l[b] || 0) ? c : b, INT[0]);
+  const nearInt = modalIntAt(leads[0]);
+
+  // Peak intensity = strongest modal intensity across leads + first month it becomes modal.
+  let peakRank = -1, peakInt = INT[0], peakMonth = leads[0].valid_time;
+  for (const l of leads) {
+    const c = modalIntAt(l), r = INT.indexOf(c);
+    if (r > peakRank) { peakRank = r; peakInt = c; peakMonth = l.valid_time; }
+  }
+
+  const strongPlus = dom === "en" ? ["strong_el_nino", "extreme_el_nino"]
+                   : dom === "ln" ? ["strong_la_nina", "extreme_la_nina"] : ["neutral"];
+  const meanSP = sig.reduce((s, l) => s + strongPlus.reduce((a, c) => a + (l[c] || 0), 0), 0) / sig.length;
+
+  const lastMonth = _formatValidMonth(leads[leads.length - 1].valid_time);
+  let headline;
+  if (dom === "neu") {
+    headline = `Current outlook: ENSO-neutral conditions are favoured through ${lastMonth}.`;
+  } else if (peakRank > INT.indexOf(nearInt)) {
+    headline = `Current outlook: a ${INTLABEL[nearInt]} ${FAMLABEL[dom]} now, strengthening toward ${INTLABEL[peakInt]} by ${_formatValidMonth(peakMonth)}.`;
+  } else {
+    headline = `Current outlook: a ${INTLABEL[peakInt]} ${FAMLABEL[dom]} is favoured through ${lastMonth}.`;
+  }
+
+  const ctaPhase = dom === "en" ? "strong_el_nino" : dom === "ln" ? "strong_la_nina" : "neutral";
+  const ctaUrl = `map_explorer.html?source=obs&season=djf&phase=${ctaPhase}&variable=rx10day_anomaly`;
+
+  let sub;
+  if (dom === "neu") {
+    sub = `${(CENTRE_SHORT[primSrc] || primSrc)}, issued ${_formatValidMonth(f.vintage)}. Full distributions and skill below.`;
+  } else {
+    const spTxt = meanSP >= 0.995 ? `Every ${CENTRE_SHORT[primSrc] || primSrc} ensemble member is`
+                                  : `${Math.round(meanSP * 100)}% of ${CENTRE_SHORT[primSrc] || primSrc} ensemble members are`;
+    sub = `${spTxt} in the strong-or-extreme ${FAMLABEL[dom]} range across the 3-6 month outlook (issued ${_formatValidMonth(f.vintage)}) - that lead time is the window for anticipatory action.`;
+  }
+
+  el.style.display = "block";
+  el.innerHTML =
+    `<div style="border-left:5px solid ${ACCENT[dom]};background:${TINT[dom]};border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.4rem">` +
+      `<div style="font-size:1.18rem;font-weight:700;color:#14202b;line-height:1.32">${headline}</div>` +
+      `<div style="font-size:0.9rem;color:#3b4754;margin-top:0.4rem">${sub}</div>` +
+      `<a href="${ctaUrl}" style="display:inline-block;margin-top:0.85rem;padding:0.45rem 1rem;background:${ACCENT[dom]};color:#fff;border-radius:6px;font-size:0.86rem;font-weight:600;text-decoration:none">See what this means for rainfall, drought and heat &rarr;</a>` +
+    `</div>`;
 }
 
 function _renderMultiForecastMeta(metaEl, forecasts, sources) {
