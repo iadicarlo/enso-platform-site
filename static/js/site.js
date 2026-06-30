@@ -47,6 +47,15 @@
     var headerInner = document.querySelector(".header-inner");
     var nav = headerInner ? headerInner.querySelector("nav") : null;
 
+    if (nav && !nav.querySelector('a[data-nav="guide"]')) {
+      var gl = document.createElement("a");
+      gl.href = "guide.html";
+      gl.textContent = "Guide";
+      gl.setAttribute("data-nav", "guide");
+      if (document.body.dataset.page === "guide") gl.classList.add("active");
+      nav.insertBefore(gl, nav.firstChild);
+    }
+
     if (nav && !nav.querySelector('.nav-dropdown[data-nav-group="about"]')) {
       var page = document.body.dataset.page;
       var isAbout = (page === "about" || page === "methodology");
@@ -90,6 +99,7 @@
           '</div>' +
           '<div class="footer-col">' +
             '<div class="footer-title">Explore</div>' +
+            '<a href="guide.html">Guide</a>' +
             '<a href="index.html">Forecast</a>' +
             '<a href="map_explorer.html">Teleconnections</a>' +
             '<a href="hindcast_skill.html">Skill</a>' +
