@@ -53,7 +53,8 @@
       gl.textContent = "Guide";
       gl.setAttribute("data-nav", "guide");
       if (document.body.dataset.page === "guide") gl.classList.add("active");
-      nav.insertBefore(gl, nav.firstChild);
+      // place Guide as the SECOND tab, right after Forecast
+      nav.insertBefore(gl, nav.children[1] || null);
     }
 
     if (nav && !nav.querySelector('.nav-dropdown[data-nav-group="about"]')) {

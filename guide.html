@@ -135,6 +135,45 @@
       </ol>
     </section>
 
+    <!-- Concrete persona walkthrough -->
+    <section class="card">
+      <h2>The four steps, made real: a hospital in Kenya</h2>
+      <p class="schem-note">Imagine you run a health facility in Kenya and you hear a strong El Niño is forecast. Here is exactly what to do, in about five minutes, and why each step matters.</p>
+      <ol class="guide-steps">
+        <li>
+          <h3>Start with the forecast</h3>
+          <p>Open the <a href="index.html">Forecast</a> tab. The top line tells you in plain words what is coming, for example a strong El Niño strengthening over the next few months, and the bars show how sure the models are. <strong>Why it matters:</strong> a big event is likely, so it is worth preparing now.</p>
+        </li>
+        <li>
+          <h3>Find Kenya on the map</h3>
+          <p>Open <a href="map_explorer.html">Teleconnections</a>, drag the globe to East Africa, and click Kenya to zoom in. Leave the "Source" on its default, that simply means the map is built from real, observed rainfall records.</p>
+        </li>
+        <li>
+          <h3>Check the rain</h3>
+          <p>Keep <em>Wet</em> selected and choose the season that matters to you, <em>SON</em> (the short rains, September to November). Blue and green mean wetter than usual, brown and red mean drier. <strong>For you:</strong> in a strong El Niño the Kenyan short rains usually turn wetter, which raises the risk of flooding and the diseases that follow it, such as cholera, malaria and Rift Valley Fever.</p>
+        </li>
+        <li>
+          <h3>Check the heat</h3>
+          <p>Switch the hazard to <em>Heat stress</em>. This map uses WBGT, which is simply a "feels-like" heat number that combines temperature and humidity. A high value means dangerous heat for the body, which matters most for patients, the elderly and young children.</p>
+        </li>
+        <li>
+          <h3>Check for dry spells</h3>
+          <p>Switch to <em>Drought / Dry</em>. This shows the longest run of dry days, so you can see whether other seasons bring dry spells that strain water supply and health services.</p>
+        </li>
+        <li>
+          <h3>Ask: can I trust it?</h3>
+          <p>Open the <a href="hindcast_skill.html">Skill</a> tab. The grid grades how well the model predicted ENSO in the past: greener and closer to 1.0 means more reliable. If your lead time sits in the reliable part, you can act with confidence.</p>
+        </li>
+        <li class="act">
+          <h3>Act on the lead time</h3>
+          <p>You now know, months ahead, that wetter short rains and flood risk are likely. So you pre-position cholera and clean-water supplies, check drainage and access routes, brief your teams, and trigger your anticipatory-action plan <strong>before</strong> the season, not during it. That early warning is the whole point of the tool.</p>
+        </li>
+      </ol>
+      <p style="font-size:0.86rem;color:var(--text-muted);margin-top:0.6rem">
+        Swap "Kenya" and "short rains" for your own context: the same six clicks work for any country, season and hazard.
+      </p>
+    </section>
+
     <!-- Reading the forecast -->
     <section class="card">
       <h2>Reading the forecast</h2>
@@ -241,38 +280,41 @@
       </div>
     </section>
 
-    <!-- Worked example -->
-    <section class="card">
-      <h2>A worked example</h2>
-      <div class="prose">
-        <p>
-          Say a strong El Niño is forecast for the coming season. You open the <strong>Forecast</strong> and see the
-          probability of a strong-or-extreme event climbing over the next few months. You switch to
-          <strong>Teleconnections</strong>, set the phase and season, and zoom to your country: the maps show where
-          it tilts wetter and flood-prone, where it tilts drier, and where heat stress rises, which is the input you
-          need to anticipate the related risks (for example waterborne disease after flooding, or heat on patients
-          and staff). You check the <strong>Skill</strong> page and confirm the forecast is reliable at that lead.
-          With months of warning, you pre-position supplies and brief teams before the season, not during it.
-        </p>
-      </div>
-    </section>
-
     <!-- Glossary -->
     <section class="card">
-      <h2>Quick glossary</h2>
+      <h2>The words you'll see, in plain English</h2>
+      <p class="schem-note">Every technical term on the platform, explained in one line. You do not need any of these to use the tool.</p>
       <dl class="glossary">
-        <dt>ENSO (El Niño-Southern Oscillation)</dt>
-        <dd>The natural warming (El Niño) and cooling (La Niña) of the tropical Pacific that shifts weather worldwide.</dd>
+        <dt>El Niño / La Niña (ENSO)</dt>
+        <dd>The natural warming (El Niño) and cooling (La Niña) of the tropical Pacific Ocean. It shifts weather worldwide, which is why it is worth watching.</dd>
         <dt>Teleconnection</dt>
-        <dd>A far-away effect of that Pacific shift, for example changes in rainfall, drought or heat over your region.</dd>
+        <dd>The far-away knock-on effect: how that Pacific change reaches your region as more or less rain, drought or heat.</dd>
+        <dt>Climate model</dt>
+        <dd>A computer simulation of the atmosphere and ocean, a "what if" laboratory used to study how El Niño changes weather.</dd>
+        <dt>Ensemble (and "large ensemble")</dt>
+        <dd>Running the model many times from slightly different starts. The spread between runs is the uncertainty; a large ensemble is many runs, which gives lots of El Niño examples to average over.</dd>
+        <dt>CESM2</dt>
+        <dd>The large-ensemble climate model we use. Why: the real world has had only a few strong El Niños, too few to draw a clear map, so the model supplies hundreds of events and the pattern becomes reliable.</dd>
+        <dt>CHIRPS</dt>
+        <dd>A long record of <em>observed</em> rainfall, from satellites and rain gauges. It is what actually fell.</dd>
+        <dt>ERA5</dt>
+        <dd>A long record of <em>observed</em> weather (temperature, humidity, and more), used here for the heat maps.</dd>
+        <dt>Why observations and a model together?</dt>
+        <dd>Observations are real but short and noisy for rare events; the model fills the gap with many events. When the two agree, the pattern is trustworthy.</dd>
+        <dt>RX10day</dt>
+        <dd>The heaviest 10-day rainfall total, a flood-risk indicator.</dd>
+        <dt>CDD (consecutive dry days)</dt>
+        <dd>The longest run of days with no rain, a drought or dry-spell indicator.</dd>
+        <dt>WBGT</dt>
+        <dd>A "feels-like" heat number that combines temperature and humidity. A high value means dangerous heat for the body.</dd>
+        <dt>UTCI</dt>
+        <dd>A similar "feels-like" comfort index.</dd>
         <dt>Anomaly</dt>
-        <dd>The difference from normal (here, from ENSO-neutral years), so it isolates the El Niño or La Niña effect.</dd>
+        <dd>The difference from normal (from ENSO-neutral years), so it isolates the El Niño or La Niña effect.</dd>
         <dt>Lead time</dt>
         <dd>How many months ahead the forecast looks. L1 is this month, L6 is six months out.</dd>
         <dt>Skill / correlation</dt>
         <dd>How closely past forecasts matched what actually happened, from 0 (no skill) to 1 (perfect).</dd>
-        <dt>Ensemble</dt>
-        <dd>Many model runs from slightly different starts; the spread is the uncertainty, and the share in a class is the probability.</dd>
       </dl>
       <p style="font-size:0.86rem;color:var(--text-muted);margin-top:0.8rem">
         For the full methods and data sources, see the <a href="methodology.html">Methodology</a> page.
@@ -280,6 +322,6 @@
     </section>
   </main>
 
-  <script src="static/js/site.js?v=20260624j"></script>
+  <script src="static/js/site.js?v=20260624k"></script>
 </body>
 </html>
